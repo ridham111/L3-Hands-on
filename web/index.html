@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cortex — Codebase Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* ---- DARK THEME ---- warm greige (neutral-warm grey) base + terracotta accent */
+    --bg:#1a1817; --bg-2:#201e1c; --card:#242220; --inset:#161412; --code-bg:#121110;
+    --line:#322e2b; --line-strong:#403b37;
+    --text:#f0ece6; --body:#c7c1b8; --muted:#8d877d; --faint:#5b564e;
+    /* warm terracotta on grey — #dd7a5b core, deep #c4603f, light ink #f0a585 */
+    --brand:#dd7a5b; --brand-deep:#c4603f; --brand-ink:#f0a585;
+    --brand-2:#e58a6c;
+    --brand-soft:rgba(221,122,91,.13); --brand-ring:rgba(221,122,91,.38);
+    --grad:linear-gradient(120deg,#ec9b7e,#dd7a5b 55%,#c4603f);
+    --grad2:linear-gradient(120deg,#e58a6c,#c4603f);
+    /* multi-hue accent system (cool greys + warm pop) */
+    --amber:#e0a35e; --coral:#e08a64; --teal:#5bb3a8; --cyan:#6fc6d0; --blue:#7aa6d4;
+    --rose:#d98aa6; --emerald:#7bc4b0; --gold:#d2a05e;
+    --ok:#dd7a5b; --ok-soft:rgba(221,122,91,.14); --bad:#e0788a; --bad-soft:rgba(224,120,138,.15);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+    --shadow-md:0 2px 6px rgba(0,0,0,.45), 0 14px 32px rgba(0,0,0,.55);
+    --shadow-lg:0 10px 24px rgba(0,0,0,.55), 0 28px 60px rgba(0,0,0,.68);
+    --glow:0 0 0 1px rgba(221,122,91,.25), 0 8px 30px rgba(221,122,91,.16);
+    --f-ui:'Plus Jakarta Sans',-apple-system,sans-serif;
+    --f-read:'Source Serif 4',Georgia,serif;
+    --f-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+    --fv-w:min(560px,42vw);   /* width of the docked file panel on wide screens */
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    color:var(--text); font-family:var(--f-ui);
+    font-size:14px; line-height:1.6; display:flex; flex-direction:column; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(1200px 560px at 6% -12%, rgba(221,122,91,.09), transparent 58%),
+      radial-gradient(1000px 540px at 102% 4%, rgba(196,96,63,.06), transparent 55%),
+      var(--bg);
+  }
+  #app{display:flex;flex-direction:column;height:100%}
+
+  ::selection{background:rgba(221,122,91,.30)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#33363f;border-radius:99px;border:3px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#42454f}
+  ::-webkit-scrollbar-track{background:transparent}
+  aside::-webkit-scrollbar-thumb,#msgs::-webkit-scrollbar-thumb{border-color:transparent}
+
+  /* interconnected knot mark (the "place of interest" symbol) */
+  .knot{fill:none;stroke:url(#g);stroke-linecap:round;stroke-linejoin:round;stroke-width:6.5}
+  .mark .knotsvg{width:38px;height:38px}
+  .glyph .knot{stroke-dasharray:1;stroke-dashoffset:1;animation:knotdraw 2s cubic-bezier(.4,0,.2,1) forwards}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex; align-items:center; gap:13px; padding:0 28px; height:64px; flex:none;
+    background:var(--bg-2);
+    border-bottom:1px solid var(--line); position:relative; z-index:5;
+  }
+  header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,transparent,var(--brand),transparent);opacity:.35}
+  .mark{width:36px;height:36px;flex:none;display:grid;place-items:center}
+  .mark .knot{stroke:var(--brand)}
+  .brand{min-width:0;display:flex;align-items:baseline;gap:12px}
+  .brand h1{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--brand-ink)}
+  .brand .tag{
+    font-size:12.5px;color:var(--muted);font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .sys{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim,var(--muted));
+    font-weight:600;font-family:var(--f-mono);padding:5px 12px;border-radius:999px;
+    background:rgba(221,122,91,.08);border:1px solid var(--line)}
+  .sys .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .sys .dot.on{background:var(--brand);box-shadow:none}
+
+  /* ---------- ingest bar ---------- */
+  .bar{
+    display:flex; flex-direction:column; gap:0; flex:none;
+    background:var(--card); border-bottom:1px solid var(--line);
+  }
+  .bar-tabs{display:flex;gap:0;padding:10px 28px 0;border-bottom:1px solid var(--line)}
+  .bar-tab{
+    padding:7px 18px 8px; font-size:12px; font-weight:700; cursor:pointer; border:none;
+    background:none; color:var(--muted); font-family:var(--f-ui); border-bottom:2px solid transparent;
+    margin-bottom:-1px; transition:color .15s,border-color .15s;
+  }
+  .bar-tab:hover{color:var(--text)}
+  .bar-tab.active{color:var(--brand-ink);border-bottom-color:var(--brand)}
+  .bar-form{display:flex;gap:12px;align-items:flex-end;padding:12px 28px 14px}
+  .bar-pane{display:none}.bar-pane.active{display:contents}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field.grow{flex:1;min-width:200px}
+  label{font-size:11.5px;font-weight:600;color:var(--muted)}
+  input{
+    background:var(--inset); border:1px solid var(--line-strong); border-radius:8px;
+    color:var(--text); font-family:var(--f-mono); font-size:12.5px;
+    padding:8px 12px; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-ring)}
+  input::placeholder{color:var(--faint)}
+  .btn{
+    border:0; border-radius:9px; cursor:pointer; font-weight:700; font-size:13px;
+    font-family:var(--f-ui); padding:9px 22px; color:#1a0f0a;
+    background:var(--brand); border:1px solid var(--brand-deep);
+    transition:background .15s, color .15s, opacity .15s;
+  }
+  .btn:hover{background:var(--brand-deep);color:#1a0f0a}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+  /* ---------- layout ---------- */
+  main{flex:1;display:grid;grid-template-columns:300px 1fr;grid-template-rows:minmax(0,1fr);min-height:0}
+
+  /* ---------- sidebar ---------- */
+  aside{
+    border-right:1px solid var(--line); overflow-y:auto; padding:22px 18px 32px;
+    background:var(--bg); min-height:0;
+  }
+  .sec{margin-bottom:28px}
+  .sec-h{
+    display:flex; align-items:center; gap:8px; margin-bottom:10px;
+    font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted);
+  }
+  .ns{
+    display:flex; gap:10px; padding:10px 12px; margin-bottom:6px; cursor:pointer;
+    border:1px solid transparent; border-radius:10px;
+    transition:background .15s, border-color .15s;
+  }
+  .ns:hover{background:rgba(255,255,255,.04)}
+  .ns.active{background:var(--card);border-color:var(--line);box-shadow:var(--shadow-sm)}
+  .ns.active .nm{color:var(--brand-ink)}
+  .ns .idx{font-family:var(--f-mono);font-size:10px;color:var(--faint);padding-top:4px}
+  .ns .nm{font-weight:700;font-size:13px;word-break:break-all}
+  .ns .meta{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .empty-side{font-size:12.5px;color:var(--muted)}
+
+  .brief{
+    font-size:12.5px;color:var(--body);background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:13px 14px;box-shadow:var(--shadow-sm);line-height:1.55;
+  }
+  .brief b{font-size:13px}
+  .brief .src-line{font-size:11px;color:var(--muted);margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
+
+  .pill{
+    display:block; width:100%; text-align:left; cursor:pointer; margin-bottom:6px;
+    background:var(--card); border:1px solid var(--line); border-radius:9px;
+    color:var(--body); font-size:12.5px; font-weight:500; font-family:var(--f-ui); padding:9px 12px;
+    transition:border-color .15s, box-shadow .15s, color .12s;
+  }
+  .pill:hover{border-color:var(--brand);color:var(--brand-ink);box-shadow:0 0 0 3px var(--brand-soft);transform:translateX(2px)}
+
+  .teach-intro{font-size:11.5px;color:var(--muted);margin-bottom:10px;line-height:1.45}
+  .gap{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow-sm)}
+  .gap .q{font-size:12.5px;color:var(--text);font-weight:600;margin-bottom:7px;line-height:1.4}
+  .gap .q code{font-family:var(--f-mono);font-size:11.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--brand-ink)}
+  .gap textarea{
+    width:100%;resize:vertical;min-height:46px;font-family:var(--f-ui);font-size:12.5px;
+    border:1px solid var(--line-strong);border-radius:7px;padding:7px 9px;outline:none;color:var(--text);
+    background:var(--inset);
+  }
+  .gap textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-ring)}
+  .gap .row{display:flex;gap:6px;margin-top:6px}
+  .gap .save{
+    border:0;border-radius:6px;background:var(--brand);color:#fff;font-weight:600;font-size:11.5px;
+    padding:5px 12px;cursor:pointer;font-family:var(--f-ui);
+  }
+  .gap .save:hover{background:var(--brand-deep)}
+  .gap.done{opacity:.6}
+  .gap.done .q::after{content:" ✓ saved";color:var(--brand-ink);font-weight:700;font-size:11px}
+
+  /* ---------- chat ---------- */
+  .chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .chat-top{
+    flex:none; display:flex; align-items:center; gap:8px; padding:10px 32px;
+    border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted); background:var(--card);
+  }
+  .chat-top .ns-now{color:var(--text);font-weight:700}
+  .chat-top .spacer{margin-left:auto}
+  .chat-top button{
+    background:var(--card);border:1px solid var(--line-strong);border-radius:7px;color:var(--muted);
+    font-size:12px;font-weight:600;padding:4px 12px;cursor:pointer;font-family:var(--f-ui);
+    transition:color .12s,border-color .12s;
+  }
+  .chat-top button:hover{color:var(--bad);border-color:var(--bad)}
+  .chat-top button.resync:hover{color:var(--brand-ink);border-color:var(--brand)}
+  .chat-top button:disabled{opacity:.5;cursor:default}
+
+  #msgs{flex:1;min-height:0;overflow-y:auto;padding:32px 36px 20px;scroll-behavior:smooth}
+  .stream{max-width:780px;margin:0 auto}
+
+  /* empty state */
+  .empty{margin-top:9vh;text-align:center;color:var(--muted)}
+  .empty .glyph{width:72px;height:72px;margin:0 auto 14px}
+  @keyframes knotdraw{to{stroke-dashoffset:0}}
+  @keyframes knotloop{0%{stroke-dashoffset:1}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+  /* interactive ingest panel */
+  .ingesting{margin-top:8vh;text-align:center;color:var(--muted)}
+  .ingesting .glyph{width:44px;height:44px;margin:0 auto 10px}
+  .ingesting h2{font-family:var(--f-read);font-weight:600;font-size:18px;color:var(--text);margin:4px 0 16px}
+  .isteps{display:flex;flex-direction:column;gap:0;text-align:left;max-width:280px;margin:0 auto}
+  .istep{display:flex;gap:11px;align-items:flex-start}
+  .istep-left{display:flex;flex-direction:column;align-items:center;flex:none;width:10px}
+  .idot{
+    width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-strong);
+    background:transparent;flex:none;margin-top:4px;
+    transition:border-color .3s,background .3s,box-shadow .3s;z-index:1;
+  }
+  .istep-line{width:1.5px;min-height:13px;flex:1;background:var(--line);margin:2px auto;transition:background .4s}
+  .istep:last-child .istep-line{visibility:hidden}
+  .istep-body{padding:0 0 14px}
+  .istep-label{font-size:12.5px;color:var(--faint);transition:color .25s;display:block;line-height:1.3}
+  .istep.active .idot{border-color:var(--brand);background:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);animation:step-pulse 2s ease infinite}
+  .istep.active .istep-label{color:var(--text);font-weight:600}
+  .istep.done .idot{border-color:var(--brand);background:var(--brand);box-shadow:none;animation:none}
+  .istep.done .istep-label{color:var(--brand-ink)}
+  .istep.done .istep-line{background:var(--brand)}
+  .imeta{font-size:12px;max-width:380px;margin:14px auto 0;color:var(--muted)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes step-pulse{
+    0%,100%{box-shadow:0 0 0 3px rgba(221,122,91,.22)}
+    50%{box-shadow:0 0 0 6px rgba(221,122,91,.05)}
+  }
+
+  .empty h2{font-family:var(--f-read);font-weight:600;font-size:26px;color:var(--text);margin:10px 0 8px;letter-spacing:-.01em}
+  .empty p{font-size:14px;max-width:460px;margin:0 auto;color:var(--muted)}
+  .empty .kbd{
+    font-family:var(--f-mono);font-size:11px;background:var(--card);border:1px solid var(--line-strong);
+    border-bottom-width:2px;border-radius:6px;padding:1px 7px;color:var(--body);
+  }
+
+  .turn{margin-bottom:26px;animation:msg .3s cubic-bezier(.2,.7,.2,1) both}
+  .turn.user{display:flex;gap:12px;padding:2px 2px}
+  .turn.user .ps1{
+    flex:none;width:26px;height:26px;border-radius:8px;background:var(--brand);color:#1a0f0a;
+    display:grid;place-items:center;font-size:11px;font-weight:800;margin-top:1px;
+  }
+  .turn.user span:last-child{font-weight:600;font-size:14.5px;letter-spacing:-.01em;color:var(--text);
+    background:linear-gradient(180deg,rgba(221,122,91,.12),rgba(221,122,91,.06));
+    border:1px solid var(--line);border-radius:12px;border-top-left-radius:3px;padding:9px 14px}
+  .turn.bot{
+    background:linear-gradient(180deg,var(--card),var(--bg-2)); border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow-md); overflow:hidden;
+    transition:box-shadow .25s, transform .2s, border-color .25s;
+  }
+  .turn.bot:hover{border-color:rgba(221,122,91,.3)}
+  .turn.bot::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand);
+  }
+  .answer{
+    padding:20px 26px 16px; font-family:var(--f-read); font-size:15.5px; line-height:1.75;
+    color:var(--body);
+  }
+  .answer.typing::after{
+    content:""; display:inline-block; width:2px; height:16px; background:var(--brand);
+    margin-left:3px; vertical-align:-2px; animation:blink .85s steps(1) infinite;
+  }
+  .answer code{
+    font-family:var(--f-mono); font-size:12.5px; background:var(--code-bg);
+    border:1px solid var(--line); border-radius:5px; padding:1px 6px; color:var(--brand-ink);
+  }
+  .answer strong{color:var(--text);font-weight:600}
+  .answer .li{display:block;padding-left:16px;text-indent:-16px;margin:3px 0}
+  .ans-meta{
+    display:flex; align-items:center; gap:12px; padding:9px 26px; flex-wrap:wrap;
+    border-top:1px solid var(--line); font-size:11px; color:var(--muted); background:var(--inset);
+    font-family:var(--f-mono);
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:2px 10px;
+    font-size:11px; letter-spacing:.01em; font-weight:700; font-family:var(--f-ui);
+  }
+  .chip.ok{color:var(--brand-ink);background:var(--brand-soft)}
+  .chip.bad{color:var(--bad);background:var(--bad-soft)}
+  .chip.cited{color:var(--brand-ink);background:var(--brand-soft);padding:1px 9px;font-weight:600}
+
+  /* source panel — single file viewer, populated on wiring node click */
+  .src-panel{border-top:1px solid var(--line);background:var(--inset)}
+  .src-panel .sp-head{
+    display:flex; align-items:center; gap:9px; padding:8px 26px;
+    font-family:var(--f-mono); font-size:11.5px; min-width:0;
+  }
+  .src-panel .sp-path{color:var(--body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+  .src-panel .sp-path bdi{unicode-bidi:plaintext}
+  .src-panel .lines{color:var(--faint);flex:none}
+  .src-panel .sym{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px;font-size:10.5px}
+  .src-panel .right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+  .meter{width:38px;height:3px;border-radius:2px;background:var(--line-strong);overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--brand);border-radius:2px}
+  .src-panel .sp-close{
+    border:none;background:transparent;color:var(--faint);cursor:pointer;
+    padding:2px 7px;font-size:13px;line-height:1;flex:none;margin-left:4px;border-radius:5px;
+  }
+  .src-panel .sp-close:hover{color:var(--fg);background:rgba(255,255,255,.06)}
+  .src-panel pre{
+    margin:0 26px 14px; padding:12px 14px; overflow:auto; max-height:280px;
+    background:var(--code-bg); border:1px solid var(--line); border-radius:9px;
+    font-family:var(--f-mono); font-size:11px; line-height:1.6; color:var(--body); white-space:pre-wrap;
+    animation:reveal .22s ease both;
+  }
+  .src-panel .sp-empty{padding:12px 26px 16px;color:var(--muted);font-style:italic;font-size:12px}
+  /* active wiring node gets a brand-color border glow */
+  svg.wire .wnode.active .wn{stroke:var(--brand);stroke-width:2}
+  /* guided tour */
+  .tour-start{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--brand); color:#1a0f0a; border:1px solid var(--brand-deep);
+    border-radius:9px; font-family:var(--f-ui); font-weight:700; font-size:13px;
+    padding:10px 12px; cursor:pointer; transition:background .14s;
+  }
+  .tour-start:hover{background:var(--brand-deep)}
+  .tour-blurb{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.45}
+  /* full project walkthrough */
+  .wt{max-width:860px;margin:0 auto;padding:8px 4px 60px}
+  .wt-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+  .wt-h strong{color:var(--text);font-size:18px}
+  .wt-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .wt-btn{background:var(--card);border:1px solid var(--line-strong);color:var(--text);border-radius:7px;
+    font-family:var(--f-ui);font-size:11.5px;font-weight:600;padding:5px 11px;cursor:pointer;transition:.12s}
+  .wt-btn:hover{border-color:var(--brand);color:var(--brand-ink)}
+  .wt-stack{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+  .wt-chip{background:var(--brand-soft);color:var(--brand-ink);font-size:11px;padding:3px 9px;border-radius:6px}
+  .wt-offline{font-size:12px;color:var(--muted);background:var(--inset);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;margin:0 0 14px;line-height:1.5}
+  .wt-offline code{font-family:var(--f-mono);font-size:11px;background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--brand-ink)}
+  .wt-toc{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .wt-toc a{font-size:11.5px;color:var(--muted);background:var(--card);border:1px solid var(--line);
+    border-radius:6px;padding:4px 9px;text-decoration:none}
+  .wt-toc a:hover{color:var(--brand-ink);border-color:var(--brand)}
+  .wt-sec{margin:0 0 26px;scroll-margin-top:14px}
+  .wt-sec h3{font-family:var(--f-read);font-weight:600;font-size:18px;color:var(--text);margin:0 0 10px;
+    padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .wt-body{font-size:13.5px;line-height:1.72;color:var(--body)}
+  .wt-body code{font-family:var(--f-mono);font-size:12px;background:var(--code-bg);border:1px solid var(--line);
+    border-radius:4px;padding:0 4px;color:var(--brand-ink)}
+  .wt-body .li{display:block;margin:3px 0}
+  .wt-files{margin-top:11px;font-size:11px;color:var(--muted)}
+  .wt-files b{color:var(--faint);font-weight:600}
+  .wt-files code{font-family:var(--f-mono);background:var(--inset);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin:0 2px;color:var(--body)}
+  .openfile{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+  .openfile:hover{color:var(--brand-ink)}
+  /* full-file viewer modal */
+  .fv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:none;
+    align-items:center;justify-content:center;padding:24px}
+  .fv-overlay.open{display:flex}
+  .fv-modal{background:var(--card);border:1px solid var(--line-strong);border-radius:14px;
+    width:min(940px,95vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);overflow:hidden}
+  .fv-head{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .fv-head .fv-path{flex:1;min-width:0;font-family:var(--f-mono);font-size:12.5px;color:var(--text);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+  .fv-x{background:transparent;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 8px;border-radius:6px;flex:none}
+  .fv-x:hover{color:var(--text);background:rgba(255,255,255,.06)}
+  .fv-body{overflow:auto;padding:14px 16px}
+  .fv-meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+  .fv-trunc{color:var(--brand-ink)}
+  .fv-code{margin:0;font-family:var(--f-mono);font-size:12px;line-height:1.62;color:var(--body);white-space:pre;tab-size:4}
+  .fv-loading{color:var(--muted);font-size:13px;padding:26px;text-align:center;font-style:italic}
+  /* docked-right mode (wide screens): the file sits beside the chat instead of
+     over it; #app.fv-docked shrinks the chat grid so nothing is hidden */
+  .fv-overlay.fv-dock{background:transparent;inset:64px 0 0 auto;width:var(--fv-w);padding:0;align-items:stretch;justify-content:flex-end}
+  .fv-overlay.fv-dock .fv-modal{width:100%;height:100%;max-height:none;border-radius:0;border:none;border-left:1px solid var(--line-strong);box-shadow:none}
+  #app.fv-docked main{padding-right:var(--fv-w);transition:padding-right .18s ease}
+  .tour{max-width:820px;margin:0 auto;padding:8px 4px 40px}
+  .tour-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .tour-h strong{color:var(--text);font-size:16px}
+  .tour-x{background:var(--card);border:1px solid var(--line-strong);color:var(--muted);
+    border-radius:7px;font-family:var(--f-ui);font-size:11.5px;padding:5px 10px;cursor:pointer}
+  .tour-x:hover{color:var(--text);border-color:var(--brand)}
+  .tour-ov{font-size:13px;color:var(--body);line-height:1.6;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:14px}
+  .tour-prog{height:5px;border-radius:3px;background:var(--line-strong);overflow:hidden;margin-bottom:8px}
+  .tour-prog span{display:block;height:100%;background:var(--brand);border-radius:3px;transition:width .3s}
+  .tour-meta{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .tour-meta b{color:var(--brand-ink)}
+  .tour-stop{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .tour-file{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-family:var(--f-mono);font-size:13px}
+  .tour-badge{background:var(--brand-soft);color:var(--brand-ink);font-family:var(--f-ui);
+    font-size:10px;font-weight:800;letter-spacing:.06em;padding:3px 8px;border-radius:6px}
+  .tour-path{color:var(--text);font-weight:600}
+  .tour-lang{color:var(--muted);font-size:11px}
+  .tour-lines{color:var(--faint);font-size:11px}
+  .tour-sym{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);margin-top:6px}
+  .tour-why{font-size:12.5px;color:var(--body);margin:10px 0 0;line-height:1.5}
+  .tour-note{font-size:12.5px;color:var(--body);background:var(--inset);border-left:2px solid var(--brand);
+    border-radius:0;padding:8px 12px;margin-top:10px;line-height:1.5}
+  .tour-note b{color:var(--brand-ink)}
+  .tour-code{margin:12px 0 0;padding:12px 14px;overflow:auto;max-height:300px;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:9px;
+    font-family:var(--f-mono);font-size:11.5px;line-height:1.6;color:var(--body);white-space:pre-wrap}
+  .tour-actions{margin-top:12px}
+  .tour-nav{display:flex;gap:10px;margin-top:16px}
+  .tour-nav button{flex:1;background:var(--card);border:1px solid var(--line-strong);color:var(--text);
+    border-radius:9px;font-family:var(--f-ui);font-weight:600;font-size:13px;padding:10px;cursor:pointer;transition:.14s}
+  .tour-nav button:hover:not(:disabled){border-color:var(--brand);color:var(--brand-ink)}
+  .tour-nav button:disabled{opacity:.4;cursor:default}
+  .tour-map{margin-top:22px}
+  .tour-map-h{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:8px}
+  /* offline syntax highlight tokens (tuned for dark) */
+  .tk-kw{color:#c4b5fd;font-weight:600}
+  .tk-str{color:#6ee7b7}
+  .tk-com{color:#5a6480;font-style:italic}
+  .tk-num{color:#fbbf24}
+  @keyframes reveal{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+
+  /* copy button on answers */
+  .turn.bot{position:relative}
+  .copy-btn{
+    position:absolute; top:10px; right:12px; z-index:2;
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    border-radius:7px; font-family:var(--f-ui); font-size:11px; font-weight:600;
+    padding:3px 9px; cursor:pointer; opacity:0; transition:opacity .15s, color .12s, border-color .12s;
+  }
+  .turn.bot:hover .copy-btn{opacity:1}
+  .copy-btn:hover{color:var(--brand);border-color:var(--brand)}
+  .copy-btn.ok{color:var(--brand-ink);border-color:var(--brand)}
+
+  /* thinking: the node graph sketches itself while Cortex reads */
+  .thinking{
+    display:flex; align-items:center; gap:12px; font-size:13.5px; color:var(--muted);
+    padding:16px 26px; font-family:var(--f-read); font-style:italic;
+  }
+  .thinking .glyph{width:30px;height:30px;flex:none}
+  .thinking .glyph .knot{animation:knotloop 1.8s cubic-bezier(.45,.05,.55,.95) infinite}
+
+  /* ---------- composer ---------- */
+  .composer{flex:none;padding:14px 36px 18px;border-top:1px solid var(--line);background:var(--card)}
+  .composer-inner{max-width:780px;margin:0 auto;display:flex;gap:10px;position:relative}
+  .composer input{
+    flex:1;padding:13px 16px 13px 42px;font-size:14px;border-radius:11px;
+    font-family:var(--f-ui);font-weight:500;
+  }
+  .composer .ps1{
+    position:absolute; left:15px; top:50%; transform:translateY(-50%);
+    width:20px;height:20px;border-radius:6px;background:var(--brand);color:#1a0f0a;
+    display:grid;place-items:center;font-size:10px;font-weight:800;pointer-events:none;
+  }
+  .composer .btn{padding:0 26px;border-radius:11px}
+  .hint{
+    max-width:780px;margin:8px auto 0;font-size:11.5px;color:var(--faint);
+    display:flex;gap:18px;font-weight:500;
+  }
+
+  /* ---------- wiring diagram ---------- */
+  .wirewrap{border-top:1px solid var(--line);background:var(--inset)}
+  .wire-h{display:flex;align-items:center;gap:8px;padding:10px 20px;cursor:pointer;
+    font-size:12px;color:var(--muted);user-select:none}
+  .wire-h strong{color:var(--text);font-weight:700}
+  .wire-h:hover{color:var(--brand-ink)}
+  .wire-h .caret{color:var(--faint);font-size:9px;transition:transform .18s}
+  .wirewrap.open .wire-h .caret{transform:rotate(90deg);color:var(--brand)}
+  .wire-hint{margin-left:auto;font-size:10.5px;color:var(--faint);font-style:italic}
+  .wire-body{display:none;padding:4px 16px 20px;overflow-x:auto}
+  .wirewrap.open .wire-body{display:block;animation:reveal .24s ease both}
+  .wire-legend{display:flex;flex-wrap:wrap;gap:10px;padding:0 4px 12px;font-size:11px;color:var(--body)}
+  .wire-legend span{display:inline-flex;align-items:center;gap:5px}
+  .wire-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+  .wire-legend .ek b{width:18px;height:0;display:inline-block;vertical-align:middle}
+  svg.wire{display:block;max-width:100%}
+  svg.wire .wn{filter:none}
+  /* node label — dark text on the colored pill for legibility */
+  svg.wire .wlbl{font-family:var(--f-mono);font-size:12.5px;fill:rgba(240,235,228,.86);font-weight:500}
+  svg.wire .we{fill:none;stroke-width:1.8;opacity:.5;stroke-dashoffset:0;animation:wedraw .5s ease both}
+  svg.wire .we-import{stroke-width:2.6;opacity:.78}
+  .wire-explain{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0 4px 10px;max-width:640px}
+  .wire-explain b{color:var(--text);font-weight:600}
+  svg.wire .wcap{font-family:var(--f-ui);font-size:10px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;fill:var(--muted)}
+  svg.wire .wsep{stroke:var(--line);stroke-width:1;opacity:.6}
+  svg.wire .wnode{animation:cxpop .35s cubic-bezier(.3,1.4,.5,1) both;cursor:pointer}
+  svg.wire .wnode .wn{transition:opacity .15s,filter .15s}
+  svg.wire .wtooltip{pointer-events:none;opacity:0;transition:opacity .12s}
+  svg.wire .wtooltip.show{opacity:1}
+  svg.wire.focusing .we{opacity:.1}
+  svg.wire .we.lit{opacity:1 !important;stroke-width:2.5}
+  svg.wire .we.dim{opacity:.06 !important}
+  svg.wire .wnode.dim .wn{opacity:.2}
+  svg.wire .wnode:hover .wn{filter:brightness(1.18)}
+  @keyframes wedraw{from{opacity:0}to{}}
+
+  /* ---------- toasts ---------- */
+  #toasts{position:fixed;right:18px;bottom:18px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:430px}
+  .toast{
+    background:var(--card); border:1px solid var(--line); border-left:3px solid var(--brand);
+    border-radius:10px; padding:11px 14px; font-size:12.5px; font-weight:500; color:var(--body);
+    box-shadow:var(--shadow-md); animation:msg .3s both;
+  }
+  .toast.err{border-left-color:var(--bad)}
+
+  @keyframes blink{50%{opacity:0}}
+  @keyframes msg{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @keyframes cxdraw{to{stroke-dashoffset:0}}
+  @keyframes cxpop{to{transform:scale(1)}}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+    .glyph .knot{stroke-dashoffset:0 !important;animation:none}
+  }
+  /* very short windows: give up the app-shell and let the page scroll */
+  @media (max-height: 560px){
+    body{overflow:auto}
+    #app{height:auto;min-height:100vh}
+    main{grid-template-rows:none}
+    #msgs{min-height:260px;overflow:visible}
+  }
+  @media (max-width: 900px){
+    main{grid-template-columns:1fr}
+    aside{display:none}
+    .bar-form{flex-wrap:wrap}
+    .bar-form .field{flex:1 1 100%}
+    .bar-form .btn{flex:1 1 100%;padding:11px}
+    .brand .tag{display:none}
+    .sys #sysline{display:none}
+    .src .sym{display:none}
+    #msgs{padding:18px 16px 12px}
+    .composer{padding:12px 16px 14px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#e0c178"/><stop offset=".5" stop-color="#dd7a5b"/><stop offset="1" stop-color="#c4603f"/>
+  </linearGradient>
+  <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#06b6d4"/><stop offset="1" stop-color="#6366f1"/>
+  </linearGradient>
+</defs></svg>
+<div id="app">
+
+<header>
+  <span class="mark"><svg class="knotsvg" viewBox="0 0 100 100" aria-hidden="true">
+    <path class="knot" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/>
+  </svg></span>
+  <div class="brand">
+    <h1>Cortex</h1>
+  </div>
+  <div class="sys"><span class="dot" id="sysdot"></span><span id="sysline">connecting…</span></div>
+</header>
+
+<div class="bar">
+  <div class="bar-tabs">
+    <button class="bar-tab active" id="tabLocal" onclick="switchIngestTab('local')">📁 Local path</button>
+    <button class="bar-tab" id="tabClone" onclick="switchIngestTab('clone')">🔗 Git clone URL</button>
+  </div>
+  <div class="bar-form">
+    <div class="bar-pane active" id="paneLocal">
+      <div class="field grow">
+        <label for="repo">Local repository path</label>
+        <input id="repo" placeholder="C:\Users\you\projects\my-repo" spellcheck="false" />
+      </div>
+    </div>
+    <div class="bar-pane" id="paneClone">
+      <div class="field grow">
+        <label for="cloneUrl">Git clone URL</label>
+        <input id="cloneUrl" placeholder="https://bitbucket.org/workspace/repo.git" spellcheck="false" oninput="updateCloneHint()" />
+      </div>
+      <div class="field">
+        <label for="cloneUser">Username <span style="color:var(--faint);font-weight:500">(private — leave blank for browser login)</span></label>
+        <input id="cloneUser" placeholder="email or username" size="18" spellcheck="false" oninput="updateCloneHint()" />
+      </div>
+      <div class="field">
+        <label for="cloneToken">Token / Password <span style="color:var(--faint);font-weight:500">(or leave blank)</span></label>
+        <input id="cloneToken" type="password" placeholder="ATATT… or ghp_…" size="14" spellcheck="false" oninput="updateCloneHint()" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="ns">Index name <span style="color:var(--faint);font-weight:500">(optional)</span></label>
+      <input id="ns" placeholder="auto" size="14" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label for="key">Access key</label>
+      <input id="key" type="password" value="dev-local-key" size="12" />
+    </div>
+    <button class="btn" id="ingestBtn">Index</button>
+  </div>
+  <div id="cloneHint" style="display:none;align-items:center;gap:8px;padding:6px 28px 10px;font-size:11.5px;color:var(--brand-ink);background:rgba(221,122,91,.07);border-top:1px solid rgba(221,122,91,.15);transition:opacity .4s">
+    <i class="ti ti-info-circle" aria-hidden="true"></i>
+    <span>Browser login opens automatically — finish in the popup.</span>
+    <span onclick="dismissCloneHint()" title="dismiss" style="margin-left:auto;cursor:pointer;color:var(--faint);padding:0 4px;font-size:13px;line-height:1">✕</span>
+  </div>
+</div>
+
+<main>
+  <aside>
+    <div class="sec">
+      <div class="sec-h">Indexed repositories</div>
+      <div id="nsList"><div class="empty-side">None yet — ingest one above.</div></div>
+    </div>
+    <div class="sec" id="briefSec" style="display:none">
+      <div class="sec-h">Day-1 briefing</div>
+      <div class="brief" id="brief"></div>
+    </div>
+    <div class="sec" id="tourSec" style="display:none">
+      <div class="sec-h">New here?</div>
+      <button id="tourBtn" class="tour-start"><span class="ti-tour">🧭</span> Start guided tour</button>
+      <div class="tour-blurb">A guided, ordered path through the codebase — where to start and what to read next.</div>
+      <button id="walkBtn" class="tour-start" style="margin-top:10px;background:var(--card);color:var(--brand-ink);border-color:var(--line-strong)">📖 Full project walkthrough</button>
+      <div class="tour-blurb">A complete, plain-English deep dive — stack, routing, features, business logic, data — that you can read or save as PDF.</div>
+    </div>
+    <div class="sec" id="startSec" style="display:none">
+      <div class="sec-h">Starter questions</div>
+      <div id="starters"></div>
+    </div>
+  </aside>
+
+  <section class="chat">
+    <div class="chat-top">
+      <span>Session:</span><span class="ns-now" id="nsNow">—</span>
+      <span class="spacer"></span>
+      <button id="resyncBtn" class="resync" title="Re-pull the latest commits & code from the source">↻ Re-sync</button>
+      <button id="clearBtn">Clear log</button>
+    </div>
+    <div id="msgs">
+      <div class="stream" id="stream">
+        <div class="empty">
+          <svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">
+            <path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/>
+          </svg>
+          <h2>Ask the codebase anything</h2>
+          <p>Ingest a repository, then ask in plain English. Every answer is grounded in
+             retrieved code with verified citations — or an honest "not found".</p>
+          <p style="margin-top:10px"><span class="kbd">Enter</span> to send</p>
+        </div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="composer-inner">
+        <span class="ps1">Q</span>
+        <input id="q" placeholder="Ask the codebase… e.g. how is authentication handled?" autocomplete="off" />
+        <button class="btn" id="send">Ask</button>
+      </div>
+      <div class="hint">
+        <span>Answers cite file:line from the indexed code.</span>
+        <span id="hintNs"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+</div>
+<div class="fv-overlay" id="fileModal" onclick="if(event.target===this)closeFileViewer()">
+  <div class="fv-modal">
+    <div class="fv-head">
+      <i class="ti ti-file-code" aria-hidden="true" style="color:var(--brand-ink)"></i>
+      <span class="fv-path" id="fvPath"></span>
+      <button class="fv-x" onclick="closeFileViewer()" aria-label="close">✕</button>
+    </div>
+    <div class="fv-body" id="fvBody"></div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let activeNs = null, history = [], nsMeta = {};
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const KNOT = '<svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">'
+  + '<path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
+
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function md(s){
+  let h = esc(s);
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/^[-*] (.*)$/gm, '<span class="li">•&nbsp; $1</span>');
+  h = h.replace(/^(\d+)\. (.*)$/gm, '<span class="li">$1.&nbsp; $2</span>');
+  h = h.replace(/\n/g, '<br>').replace(/<\/span><br>/g, '</span>');
+  return h;
+}
+// offline, dependency-free syntax highlighter (tokenizer, escape-safe)
+const HL_KW = new Set(('function return const let var if else for while do class export import '
+  + 'from default new this async await public private protected static void extends implements '
+  + 'interface type enum def self True False None try except catch finally throw switch case break '
+  + 'continue null true false undefined typeof instanceof yield super namespace readonly').split(' '));
+function highlight(code){
+  const e = c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c);
+  const esc = t => Array.from(t).map(e).join('');
+  let out = '', i = 0; const n = code.length;
+  const span = (cls, t) => { out += '<span class="tk-' + cls + '">' + esc(t) + '</span>'; };
+  while (i < n){
+    const c = code[i];
+    if (c === '/' && code[i+1] === '/'){ let j = code.indexOf('\n', i); if (j < 0) j = n; span('com', code.slice(i, j)); i = j; continue; }
+    if (c === '#'){ let j = code.indexOf('\n', i); if (j < 0) j = n; span('com', code.slice(i, j)); i = j; continue; }
+    if (c === '/' && code[i+1] === '*'){ let j = code.indexOf('*/', i); j = j < 0 ? n : j + 2; span('com', code.slice(i, j)); i = j; continue; }
+    if (c === '"' || c === "'" || c === '`'){ let j = i+1; while (j < n && code[j] !== c){ if (code[j] === '\\') j++; j++; } j = Math.min(j+1, n); span('str', code.slice(i, j)); i = j; continue; }
+    if (c >= '0' && c <= '9'){ let j = i; while (j < n && /[0-9a-fxA-FX._]/.test(code[j])) j++; span('num', code.slice(i, j)); i = j; continue; }
+    if (/[A-Za-z_$]/.test(c)){ let j = i; while (j < n && /[A-Za-z0-9_$]/.test(code[j])) j++; const w = code.slice(i, j); if (HL_KW.has(w)) span('kw', w); else out += esc(w); i = j; continue; }
+    out += e(c); i++;
+  }
+  return out;
+}
+function addCopyButton(botEl, text){
+  if (botEl.querySelector('.copy-btn')) return;
+  const b = document.createElement('button');
+  b.className = 'copy-btn'; b.textContent = 'Copy';
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; b.classList.add('ok');
+          setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('ok'); }, 1400); }
+    catch { toast('Copy failed', true); }
+  };
+  botEl.appendChild(b);
+}
+function toast(msg, err){
+  const t = document.createElement('div');
+  t.className = 'toast' + (err ? ' err' : '');
+  t.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .4s'; setTimeout(() => t.remove(), 450); }, 6500);
+}
+async function api(path, body, method){
+  const opts = { method: method || (body !== undefined ? 'POST' : 'GET'),
+                 headers: { 'Authorization': 'Bearer ' + $('#key').value.trim() } };
+  if (body !== undefined){
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+function scrollBottom(){ const m = $('#msgs'); m.scrollTop = m.scrollHeight; }
+
+/* ---------- typewriter: stream the answer into view ---------- */
+function typeInto(el, html, onDone){
+  if (REDUCED){ el.innerHTML = html; onDone && onDone(); return; }
+  const src = document.createElement('div'); src.innerHTML = html;
+  const total = (src.textContent || '').length;
+  const perTick = Math.max(3, Math.round(total / 140));   // whole answer in ~2.3s
+  el.innerHTML = ''; el.classList.add('typing');
+  let queue = []; src.childNodes.forEach(n => queue.push({ n, dest: el }));
+  let curText = null, curNode = null, pos = 0, skipped = false;
+  el.closest('.turn').addEventListener('click', () => { skipped = true; }, { once: true });
+  function finish(){ el.classList.remove('typing'); onDone && onDone(); scrollBottom(); }
+  function tick(){
+    if (skipped){ el.innerHTML = html; finish(); return; }
+    let budget = perTick;
+    while (budget > 0){
+      if (curText !== null){
+        const take = Math.min(budget, curText.length - pos);
+        curNode.nodeValue += curText.substr(pos, take);
+        pos += take; budget -= take;
+        if (pos >= curText.length) curText = null;
+      } else {
+        const item = queue.shift();
+        if (!item){ finish(); return; }
+        if (item.n.nodeType === 3){
+          curText = item.n.nodeValue; pos = 0;
+          curNode = document.createTextNode(''); item.dest.appendChild(curNode);
+        } else {
+          const clone = item.n.cloneNode(false); item.dest.appendChild(clone);
+          const kids = []; item.n.childNodes.forEach(k => kids.push({ n: k, dest: clone }));
+          queue = kids.concat(queue);
+        }
+      }
+    }
+    scrollBottom();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ---------- health ---------- */
+(async () => {
+  try {
+    const h = await fetch('/health').then(r => r.json());
+    $('#sysdot').classList.add('on');
+    $('#sysline').textContent = (h.backend || '?') + ' · v' + (h.version || '?');
+  } catch { $('#sysline').textContent = 'offline'; }
+})();
+
+/* ---------- namespaces ---------- */
+async function loadNamespaces(){
+  try {
+    const d = await api('/v1/namespaces');
+    const list = d.namespaces || [];
+    nsMeta = {};
+    const c = $('#nsList');
+    if (!list.length){ c.innerHTML = '<div class="empty-side">None yet — ingest one above.</div>'; return; }
+    c.innerHTML = '';
+    list.forEach((n, i) => {
+      nsMeta[n.namespace] = n;
+      const row = document.createElement('div');
+      row.className = 'ns' + (n.namespace === activeNs ? ' active' : '');
+      row.innerHTML = '<div class="idx">' + String(i + 1).padStart(2, '0') + '</div>'
+        + '<div style="min-width:0"><div class="nm">' + esc(n.namespace) + '</div>'
+        + '<div class="meta">' + esc(String(n.n_chunks || '?')) + ' chunks · ' + esc(n.backend || '') + '</div></div>';
+      row.onclick = () => selectNamespace(n.namespace);
+      c.appendChild(row);
+    });
+  } catch (e){ toast('namespaces: ' + e.message, true); }
+}
+
+function setActive(ns){
+  activeNs = ns; history = [];
+  $('#nsNow').textContent = ns || '—';
+  $('#hintNs').textContent = ns ? 'Session: ' + ns : '';
+  $('#tourSec').style.display = ns ? '' : 'none';  // tour available once a repo is active
+  document.querySelectorAll('.ns').forEach(el => {
+    el.classList.toggle('active', el.querySelector('.nm').textContent === ns);
+  });
+}
+
+function emptyState(title, sub){
+  return '<div class="empty">' + KNOT + '<h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>';
+}
+
+async function restoreChatLog(ns){
+  try {
+    const d = await api('/v1/chat/' + encodeURIComponent(ns));
+    const turns = (d.turns || []).slice(-20);
+    if (!turns.length) return false;
+    $('#stream').innerHTML = '';
+    turns.forEach(t => {
+      if (t.role === 'user'){
+        addTurn('<span class="ps1">Q</span><span>' + esc(t.content) + '</span>', 'user');
+      } else {
+        const bot = addTurn('<div class="answer">' + md(t.content) + '</div>', 'bot');
+        if (t.wiring) bot.insertAdjacentHTML('beforeend', renderWiring(t.wiring));
+        if (t.sources && t.sources.length) {
+          const sm = {};
+          t.sources.forEach(s => { sm[s.path] = s; });
+          bot._srcMap = sm;
+          bot.insertAdjacentHTML('beforeend', '<div class="src-panel" style="display:none"></div>');
+        }
+        addCopyButton(bot, t.content);
+      }
+      history.push({ role: t.role, content: t.content });
+    });
+    scrollBottom();
+    return true;
+  } catch { return false; }
+}
+
+async function selectNamespace(ns){
+  setActive(ns);
+  $('#stream').innerHTML = emptyState(ns, 'Restoring session…');
+  const restored = await restoreChatLog(ns);
+  if (!restored) $('#stream').innerHTML = emptyState(ns, 'Index ready. Ask a question, or pick a starter on the left.');
+  try {
+    // Read the briefing directly by namespace (reads briefing.json on disk).
+    // Never re-POST /v1/ingest here: a cloned repo's source dir is a temp dir
+    // that was deleted after ingest, so re-ingesting would 400 and lose the
+    // briefing. Only poll when a job is actively running.
+    const r = await api('/v1/briefing/' + encodeURIComponent(ns));
+    if (r.status === 'ready') showBriefing(r, ns);
+    else if (r.status === 'running') startBriefingPoll(ns);
+    // pending / failed: nothing generating and no cached briefing — chat still works
+  } catch (e){ /* briefing unavailable — chat still works */ }
+}
+
+function showBriefing(d, overrideNs){
+  const ns = overrideNs || d.namespace || '';
+  if (d.overview && d.overview.answer){
+    $('#briefSec').style.display = '';
+    $('#brief').innerHTML = (ns ? '<b>' + esc(ns) + '</b><br>' : '') + md(d.overview.answer)
+      + '<div class="src-line">Sources: ' + esc((d.overview.sources || []).join(', ') || '—') + '</div>';
+  }
+  const st = $('#starters'); st.innerHTML = '';
+  (d.starter_questions || []).forEach(q => {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.textContent = q;
+    b.onclick = () => { $('#q').value = q; send(); };
+    st.appendChild(b);
+  });
+  $('#startSec').style.display = (d.starter_questions || []).length ? '' : 'none';
+}
+
+let _briefingPoller = null;
+function startBriefingPoll(ns){
+  if (_briefingPoller) clearInterval(_briefingPoller);
+  $('#briefSec').style.display = '';
+  $('#brief').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">'
+    + '⏳ Day-1 briefing generating in background…</div>';
+  _briefingPoller = setInterval(async () => {
+    try {
+      const r = await api('/v1/briefing/' + encodeURIComponent(ns));
+      if (r.status === 'ready') {
+        clearInterval(_briefingPoller); _briefingPoller = null;
+        showBriefing(r, ns);
+        toast('Day-1 briefing ready for "' + ns + '"');
+      } else if (r.status === 'failed') {
+        clearInterval(_briefingPoller); _briefingPoller = null;
+        const hint = r.error && r.error.toLowerCase().includes('quota')
+          ? 'LLM quota exceeded — re-ingest when the quota resets (usually next hour).'
+          : (r.error || 'LLM error during briefing generation.');
+        $('#brief').innerHTML = '<div style="color:var(--bad);font-size:13px;padding:4px 0">'
+          + '⚠ Briefing failed: ' + esc(hint) + '<br>'
+          + '<span style="color:var(--muted);font-size:11px">Chat still works — ask questions below.</span></div>';
+        toast('Briefing failed for "' + ns + '" — see details above', true);
+      }
+    } catch (_){ /* still generating — try again next tick */ }
+  }, 4000);
+}
+
+/* ---------- clone hint ---------- */
+let _cloneHintDismissed = false;
+let _cloneHintTimer = null;
+function dismissCloneHint(){
+  const hint = $('#cloneHint');
+  _cloneHintDismissed = true;
+  if (_cloneHintTimer){ clearTimeout(_cloneHintTimer); _cloneHintTimer = null; }
+  if (hint){ hint.style.opacity = '0'; setTimeout(() => { hint.style.display = 'none'; hint.style.opacity = '1'; }, 400); }
+}
+function updateCloneHint(){
+  const url = ($('#cloneUrl')||{}).value||'';
+  const usr = ($('#cloneUser')||{}).value||'';
+  const tok = ($('#cloneToken')||{}).value||'';
+  const hint = $('#cloneHint');
+  if (!hint) return;
+  const isHttps = url.startsWith('https://');
+  const show = isHttps && !usr && !tok && !_cloneHintDismissed;
+  if (show){
+    hint.style.display = 'flex';
+    // self-dismiss after 8s so it informs once without nagging
+    if (!_cloneHintTimer) _cloneHintTimer = setTimeout(dismissCloneHint, 8000);
+  } else if (!_cloneHintDismissed){
+    hint.style.display = 'none';
+    if (_cloneHintTimer){ clearTimeout(_cloneHintTimer); _cloneHintTimer = null; }
+  }
+}
+
+/* ---------- ingest tab switching ---------- */
+let _ingestMode = 'local';
+function switchIngestTab(mode){
+  _ingestMode = mode;
+  document.querySelectorAll('.bar-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.bar-pane').forEach(p => p.classList.remove('active'));
+  $('#tab' + (mode === 'local' ? 'Local' : 'Clone')).classList.add('active');
+  $('#pane' + (mode === 'local' ? 'Local' : 'Clone')).classList.add('active');
+}
+
+/* ---------- ingest ---------- */
+const INGEST_STAGES = ['Walking the repository', 'Chunking code at function boundaries',
+  'Building the search index', 'Embedding for semantic retrieval'];
+function ingestUI(isClone){
+  let i = 0;
+  const LAST = INGEST_STAGES.length - 1;
+  const steps = INGEST_STAGES.map((s, k) =>
+    '<div class="istep" data-k="' + k + '">'
+    + '<div class="istep-left"><div class="idot"></div>'
+    + '<div class="istep-line"></div></div>'
+    + '<div class="istep-body"><span class="istep-label">' + esc(s) + '</span></div>'
+    + '</div>'
+  ).join('');
+  const metaEl = '<p class="imeta" id="ingestMeta">'
+    + (isClone ? 'Cloning may take a moment depending on repo size. ' : '')
+    + 'A new repo can take a few minutes. Re-indexing is fast.</p>';
+  $('#stream').innerHTML = '<div class="ingesting">' + KNOT
+    + '<h2>' + (isClone ? 'Cloning &amp; indexing' : 'Indexing the repository') + '</h2>'
+    + '<div class="isteps">' + steps + '</div>' + metaEl + '</div>';
+  const mark = () => {
+    document.querySelectorAll('.istep').forEach(el => {
+      const k = +el.dataset.k;
+      el.classList.toggle('done', k < i);
+      el.classList.toggle('active', k === i);
+    });
+    // when stuck on last step, update the note so user knows it's the AI writing
+    if (i === LAST) {
+      const m = $('#ingestMeta');
+      if (m) m.textContent = 'Writing the Day-1 briefing — the AI is reading your codebase. This may take up to a minute…';
+    }
+  };
+  mark();
+  const t = setInterval(() => { i = Math.min(i + 1, LAST); mark(); }, 2600);
+  return () => clearInterval(t);
+}
+$('#ingestBtn').onclick = async () => {
+  const isClone = _ingestMode === 'clone';
+  const repo = isClone ? '' : ($('#repo').value.trim());
+  let cloneUrl = isClone ? ($('#cloneUrl').value.trim()) : '';
+  if (!repo && !cloneUrl) return toast('Enter a ' + (isClone ? 'clone URL' : 'repository path'), true);
+  if (isClone && !/^(https?:\/\/|git@)/.test(cloneUrl))
+    return toast('Enter a valid git URL (https://… or git@…)', true);
+  const body = { namespace: $('#ns').value.trim() || null, rebuild: false };
+  if (isClone) {
+    body.clone_url = cloneUrl;
+    const tok = $('#cloneToken').value.trim();
+    const usr = $('#cloneUser').value.trim();
+    if (tok) body.clone_token = usr ? (usr + ':' + tok) : tok;
+  } else {
+    body.repo_path = repo;
+  }
+  $('#ingestBtn').disabled = true;
+  $('#ingestBtn').textContent = isClone ? 'Cloning…' : 'Indexing…';
+  const stop = ingestUI(isClone);
+  try {
+    const d = await api('/v1/ingest', body);
+    stop();
+    setActive(d.namespace);
+    const chunks = d.chunks_indexed + ' chunks' + (d.already_indexed ? ' (cached)' : '');
+    if (d.briefing_pending) {
+      toast('Indexed "' + d.namespace + '": ' + d.files_indexed + ' files, ' + chunks + '. Briefing generating…');
+      startBriefingPoll(d.namespace);
+    } else {
+      showBriefing(d);
+      toast('Indexed "' + d.namespace + '": ' + d.files_indexed + ' files, ' + chunks);
+    }
+    await loadNamespaces();
+    setActive(d.namespace);
+    const restored = await restoreChatLog(d.namespace);
+    if (!restored) $('#stream').innerHTML = emptyState(d.namespace, 'Index ready — ask anything, or tap a starter on the left.');
+  } catch (e){ stop(); toast('Ingest failed: ' + e.message, true);
+    $('#stream').innerHTML = emptyState('Ingest failed', e.message); }
+  finally { $('#ingestBtn').disabled = false; $('#ingestBtn').textContent = 'Index'; }
+};
+
+/* ---------- chat ---------- */
+function addTurn(html, cls){
+  const d = document.createElement('div');
+  d.className = 'turn ' + cls;
+  d.innerHTML = html;
+  const empty = $('#stream').querySelector('.empty');
+  if (empty) empty.remove();
+  $('#stream').appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+/* ---------- wiring diagram (vertical flow: main file → imports, top to bottom) ---------- */
+// each role has a colored badge with a letter symbol (VS Code-style)
+const WIRE_SYMBOL = {
+  component: 'C',  // Component
+  service:   'S',  // Service
+  template:  'T',  // Template/HTML
+  model:     'M',  // Model/DTO
+  binding:   'B',  // Binding/Pipe
+  module:    'X',  // Module
+  code:      'ƒ',  // Function/Script
+  doc:       '#',  // Documentation
+  style:     '~',  // Stylesheet
+};
+const WIRE_COLOR = {
+  component: '#e08a64',  // terracotta-coral
+  service:   '#7aa6d4',  // blue
+  template:  '#dd7a5b',  // brand terracotta
+  model:     '#a98cce',  // amethyst
+  binding:   '#5fb0c0',  // cyan-teal
+  module:    '#d2a05e',  // amber
+  code:      '#9aa0ac',  // cool gray
+  doc:       '#cb9a78',  // clay
+  style:     '#c98ab0',  // rose-mauve
+};
+const WIRE_EDGE_COLOR = {import:'#dd7a5b', folder:'#7a6558', related:'#4e4038'};
+const EDGE_DASH  = {import:'',folder:'6 4',related:'2 5'};
+let _wireSeq = 0;
+
+function renderWiring(w){
+  if (!w || (w.nodes||[]).length < 2) return '';
+  const id = 'wire' + (++_wireSeq);
+  // Vertical layout: depth 0 (the main/entry file) on top, each deeper import
+  // level below it, so the diagram reads top → bottom as an ordered flow.
+  const NW=252, NH=46, ROWV=100, COLW=288, PX=26, PY=24;
+  const byDepth = {};
+  w.nodes.forEach((n,i) => { const d = (n.depth==null ? i : n.depth); (byDepth[d]=byDepth[d]||[]).push(n); });
+  const levels = Object.keys(byDepth).map(Number).sort((a,b)=>a-b);
+  const maxCols = Math.max(1, ...levels.map(d => byDepth[d].length));
+  const W = PX*2 + (maxCols-1)*COLW + NW;
+  const H = PY*2 + (levels.length-1)*ROWV + NH;
+  const pos = {};
+  levels.forEach((d,li) => {
+    const row = byDepth[d];
+    const x0 = PX + (maxCols - row.length)*COLW/2;  // centre each level's row
+    row.forEach((n,ci) => { pos[n.id] = {x:x0 + ci*COLW, y:PY + li*ROWV, role:n.role, label:n.label, entry:n.entry}; });
+  });
+
+  // Edges — arrows flow DOWNWARD from a file to the file it imports/uses next
+  let edges = '', ei = 0;
+  w.edges.forEach(e => {
+    const a=pos[e.from], b=pos[e.to]; if (!a||!b) return;
+    const ax=a.x+NW/2, bx=b.x+NW/2;
+    let sx,sy,ex,ey,d;
+    if (b.y > a.y){ sx=ax; sy=a.y+NH; ex=bx; ey=b.y; }          // down
+    else if (b.y < a.y){ sx=ax; sy=a.y; ex=bx; ey=b.y+NH; }     // up
+    else { sx=a.x+NW; sy=a.y+NH/2; ex=b.x; ey=b.y+NH/2; }       // same level (side)
+    if (a.y === b.y){ const mx=(sx+ex)/2; d='M'+sx+' '+sy+' C'+mx+' '+sy+' '+mx+' '+ey+' '+ex+' '+ey; }
+    else if (Math.abs(sx-ex) < 2){ d='M'+sx+' '+sy+' L'+ex+' '+ey; }   // straight down (aligned columns) — cleanest
+    else { const my=(sy+ey)/2; d='M'+sx+' '+sy+' C'+sx+' '+my+' '+ex+' '+my+' '+ex+' '+ey; }
+    const kind = e.kind||'related';
+    const sc = WIRE_EDGE_COLOR[kind]||'#888';
+    edges += '<path class="we we-'+kind+'" data-a="'+esc(e.from)+'" data-b="'+esc(e.to)+'" '
+      +'stroke="'+sc+'" stroke-dasharray="'+EDGE_DASH[kind]+'" style="animation-delay:'+(ei*45)+'ms" '
+      +'d="'+d+'" marker-end="url(#'+id+'a)"/>';
+    ei++;
+  });
+
+  // Nodes — dark glass pill, role badge, label; the main file is ringed + tagged
+  let nodes = '';
+  w.nodes.forEach((n,k) => {
+    const p=pos[n.id]; const c = WIRE_COLOR[p.role]||'#94a3b8';
+    const tag = p.entry ? 'MAIN' : '';
+    const maxLbl = p.entry ? 18 : 24;
+    const short = p.label.length>maxLbl ? p.label.slice(0,maxLbl-1)+'…' : p.label;
+    const full = n.id.length > p.label.length ? n.id : p.label;
+    const tipW = Math.min(Math.max(full.length*6.5+18, 90), 340);
+    const tipX = Math.max(2, Math.min(p.x - (tipW-NW)/2, W-tipW-2));
+    const tipY = p.y - 26;
+    nodes += '<g class="wnode" data-id="'+esc(n.id)+'" '
+      +'onclick="wireOpenSource(event)" onmouseenter="wireEnter(event)" onmouseleave="wireLeave(event)" '
+      +'style="animation-delay:'+(200+k*55)+'ms">'
+      +'<rect class="wn" x="'+p.x+'" y="'+p.y+'" width="'+NW+'" height="'+NH+'" rx="10" ry="10" '
+        +'fill="#201d1a" stroke="'+(p.entry?'var(--brand)':'#322e2b')+'" stroke-width="'+(p.entry?2:1.2)+'"/>'
+      +'<rect x="'+(p.x+9)+'" y="'+(p.y+(NH-22)/2)+'" width="22" height="22" rx="4" fill="'+c+'"/>'
+      +'<text x="'+(p.x+20)+'" y="'+(p.y+NH/2+4)+'" font-size="12" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[p.role]||'?')+'</text>'
+      +'<text class="wlbl" x="'+(p.x+39)+'" y="'+(p.y+NH/2+4.5)+'">'+esc(short)+'</text>'
+      + (tag ? '<text x="'+(p.x+NW-10)+'" y="'+(p.y+NH/2+4)+'" text-anchor="end" font-size="9.5" font-weight="800" fill="var(--brand-ink)" font-family="var(--f-ui)" letter-spacing="0.5">'+tag+'</text>' : '')
+      +'<g class="wtooltip">'
+        +'<rect x="'+tipX+'" y="'+(tipY-3)+'" width="'+tipW+'" height="22" rx="5" ry="5" fill="#201d1b" stroke="#3c3733" stroke-width="1"/>'
+        +'<text x="'+(tipX+9)+'" y="'+(tipY+12)+'" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#ece7df" font-weight="500">'+esc(full)+'</text>'
+      +'</g>'
+      +'</g>';
+  });
+
+  const roles = [...new Set(w.nodes.map(n=>n.role))];
+  const legend = roles.map(r =>
+    '<span style="display:inline-flex;align-items:center;gap:5px">'
+    +'<svg width="14" height="14" viewBox="0 0 14 14">'
+    +'<rect width="14" height="14" rx="3" fill="'+(WIRE_COLOR[r]||'#907868')+'"/>'
+    +'<text x="7" y="10.5" font-size="8.5" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[r]||'?')+'</text>'
+    +'</svg>'+r+'</span>'
+  ).join('')
+    +'<span class="ek"><b style="border-top:2px solid #dd7a5b"></b>imports</span>'
+    +'<span class="ek"><b style="border-top:2px dashed #7a6558"></b>same folder</span>';
+
+  return '<div class="wirewrap open" id="'+id+'">'
+    +'<div class="wire-h" onclick="this.parentElement.classList.toggle(\'open\')">'
+    +'<span class="caret">▶</span><strong>File connections</strong>'
+    +'<span style="color:var(--faint);margin-left:7px;font-size:11px">'+w.nodes.length+' files · '+w.edges.length+' links</span>'
+    +'<span class="wire-hint">hover = highlight links · click = open full file</span></div>'
+    +'<div class="wire-body">'
+    +'<p class="wire-explain">Read <b>top → bottom</b>: the <b>MAIN</b> file is on top; each <b>arrow</b> points to a file it imports or uses next. '
+    +'Hover a box to highlight its links; click to open the full file.</p>'
+    +'<div class="wire-legend">'+legend+'</div>'
+    +'<div style="overflow-x:auto">'
+    +'<svg class="wire" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">'
+    +'<defs><marker id="'+id+'a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+    +'<path d="M0 1 L9 5 L0 9 z" fill="#a8765f"/></marker></defs>'
+    +edges+nodes
+    +'</svg></div></div></div>';
+}
+
+function wireEnter(ev){
+  const g = ev.currentTarget, svg = g.closest('svg'), id = g.getAttribute('data-id');
+  g.querySelector('.wtooltip')?.classList.add('show');
+  svg.classList.add('focusing');
+  svg.querySelectorAll('.wnode').forEach(n => n.classList.toggle('dim', n.getAttribute('data-id')!==id));
+  svg.querySelectorAll('.we').forEach(e => {
+    const hit = e.getAttribute('data-a')===id || e.getAttribute('data-b')===id;
+    e.classList.toggle('lit', hit);
+    e.classList.toggle('dim', !hit);
+    if (hit){
+      const other = e.getAttribute('data-a')===id ? e.getAttribute('data-b') : e.getAttribute('data-a');
+      svg.querySelector('.wnode[data-id="'+CSS.escape(other)+'"]')?.classList.remove('dim');
+    }
+  });
+}
+function wireLeave(ev){
+  const g = ev.currentTarget, svg = g.closest('svg');
+  g.querySelector('.wtooltip')?.classList.remove('show');
+  svg.classList.remove('focusing');
+  svg.querySelectorAll('.wnode').forEach(n => n.classList.remove('dim'));
+  svg.querySelectorAll('.we').forEach(e => e.classList.remove('lit','dim'));
+}
+function wireOpenSource(ev){
+  // clicking a connection node opens the WHOLE file — works in chat, tour, and
+  // walkthrough (it no longer depends on the chat turn's snippet map)
+  const node = ev.currentTarget;
+  const path = node.dataset.id;
+  if (!path) return;
+  const svg = node.closest('svg');
+  if (svg) svg.querySelectorAll('.wnode').forEach(n => n.classList.toggle('active', n === node));
+  openFileViewer(path);
+}
+function renderSources(d){ return ''; }  // file viewing is handled by the modal now
+
+/* ---------- full-file viewer (modal) ---------- */
+const FV_DOCK_MIN = 1180;  // px: wider than this docks the file beside the chat
+function _applyFvMode(){
+  const modal = $('#fileModal');
+  if (!modal.classList.contains('open')) return;
+  const dock = window.innerWidth >= FV_DOCK_MIN;
+  modal.classList.toggle('fv-dock', dock);
+  $('#app').classList.toggle('fv-docked', dock);
+}
+window.addEventListener('resize', _applyFvMode);
+
+async function openFileViewer(path){
+  if (!path) return;
+  if (!activeNs) return toast('Select a repo first', true);
+  const modal = $('#fileModal'), body = $('#fvBody');
+  $('#fvPath').textContent = path;
+  body.innerHTML = '<div class="fv-loading">Loading ' + esc(path) + '…</div>';
+  modal.classList.add('open');
+  _applyFvMode();  // dock on the right (wide screens) or center as a modal (laptops)
+  try {
+    const f = await api('/v1/file/' + encodeURIComponent(activeNs) + '?path=' + encodeURIComponent(path));
+    const meta = '<div class="fv-meta">' + esc(f.language || '') + ' · ' + (f.lines || 0) + ' lines'
+      + (f.truncated ? ' · <span class="fv-trunc">large file — showing the first indexed portion</span>' : '') + '</div>';
+    body.innerHTML = meta + '<pre class="fv-code">' + highlight(f.content || '') + '</pre>';
+    body.scrollTop = 0;
+  } catch (e){
+    body.innerHTML = '<div class="fv-loading">Couldn\'t load <bdi>' + esc(path) + '</bdi> — ' + esc(e.message) + '</div>';
+  }
+}
+function closeFileViewer(){
+  $('#fileModal').classList.remove('open', 'fv-dock');
+  $('#app').classList.remove('fv-docked');
+  document.querySelectorAll('.wnode.active').forEach(n => n.classList.remove('active'));
+}
+
+/* ---------- guided codebase tour ---------- */
+let _tour = null;
+async function startTour(){
+  if (!activeNs) return toast('Select a repo first', true);
+  const stream = $('#stream');
+  stream.innerHTML = '<div class="empty">' + KNOT
+    + '<h2>Building your guided tour…</h2><p>Ordering the codebase into a learning path.</p></div>';
+  try {
+    const t = await api('/v1/tour/' + encodeURIComponent(activeNs));
+    const stops = [];
+    (t.chapters || []).forEach(ch => (ch.stops || []).forEach(s => stops.push(Object.assign({ chapter: ch.title }, s))));
+    if (!stops.length){ stream.innerHTML = emptyState('Tour unavailable', 'Not enough indexed code to build a tour yet.'); return; }
+    _tour = { data: t, stops: stops, idx: 0 };
+    renderTour();
+  } catch (e){ stream.innerHTML = emptyState('Tour failed', e.message); }
+}
+
+function renderTour(){
+  if (!_tour) return;
+  const t = _tour.data, stops = _tour.stops, i = _tour.idx, s = stops[i];
+  const pct = Math.round(((i + 1) / stops.length) * 100);
+  const html = '<div class="tour">'
+    + '<div class="tour-h"><div><strong>Guided tour</strong> · ' + esc(t.namespace || activeNs) + '</div>'
+      + '<button class="tour-x" onclick="closeTour()">✕ exit tour</button></div>'
+    + (t.overview ? '<p class="tour-ov">' + esc(t.overview) + '</p>' : '')
+    + '<div class="tour-prog"><span style="width:' + pct + '%"></span></div>'
+    + '<div class="tour-meta">Stop ' + (i + 1) + ' of ' + stops.length + ' · <b>' + esc(s.chapter) + '</b></div>'
+    + '<div class="tour-stop">'
+      + '<div class="tour-file">'
+        + (s.is_entry ? '<span class="tour-badge">START HERE</span>' : '')
+        + '<span class="tour-path openfile" data-openfile="' + esc(s.path) + '">' + esc(s.path) + '</span>'
+        + (s.language ? '<span class="tour-lang">' + esc(s.language) + '</span>' : '')
+        + '<span class="tour-lines">:' + s.line_start + '–' + s.line_end + '</span>'
+      + '</div>'
+      + (s.symbol ? '<div class="tour-sym">' + esc(s.symbol) + '</div>' : '')
+      + '<div class="tour-why">' + esc(s.reason || '') + '</div>'
+      + (s.note ? '<div class="tour-note"><b>Team note:</b> ' + esc(s.note) + '</div>' : '')
+      + '<pre class="tour-code">' + highlight(s.excerpt || '') + '</pre>'
+      + '<div class="tour-actions"><button class="pill" onclick="tourAsk()">Ask about this file</button></div>'
+    + '</div>'
+    + '<div class="tour-nav">'
+      + '<button onclick="tourGo(-1)"' + (i === 0 ? ' disabled' : '') + '>← Prev</button>'
+      + '<button onclick="tourGo(1)"' + (i === stops.length - 1 ? ' disabled' : '') + '>Next →</button>'
+    + '</div>'
+    + (t.wiring ? '<div class="tour-map"><div class="tour-map-h">How these files connect</div>' + renderWiring(t.wiring) + '</div>' : '')
+    + '</div>';
+  $('#stream').innerHTML = html;
+  $('#stream').scrollTop = 0;
+}
+function tourGo(d){
+  if (!_tour) return;
+  _tour.idx = Math.max(0, Math.min(_tour.stops.length - 1, _tour.idx + d));
+  renderTour();
+}
+function tourAsk(){
+  if (!_tour) return;
+  const s = _tour.stops[_tour.idx];
+  closeTour();
+  $('#q').value = 'Explain ' + s.path + ' — what does it do and how does it fit into the project?';
+  $('#q').focus();
+}
+function closeTour(){
+  _tour = null;
+  $('#stream').innerHTML = emptyState(activeNs || '', 'Tour closed — ask a question, or start the tour again from the left.');
+}
+
+/* ---------- full project walkthrough ---------- */
+let _walk = null;
+let _walkPoll = null;
+async function startWalkthrough(){
+  if (!activeNs) return toast('Select a repo first', true);
+  if (_walkPoll) { clearInterval(_walkPoll); _walkPoll = null; }
+  $('#stream').innerHTML = '<div class="empty">' + KNOT
+    + '<h2>Building the full walkthrough…</h2><p>Reading the whole project and writing it up in plain English. '
+    + 'This can take a minute on first run.</p></div>';
+  try {
+    const r = await api('/v1/walkthrough/' + encodeURIComponent(activeNs));   // GET
+    if (r.status === 'ready') { _walk = r; renderWalkthrough(); return; }
+    await api('/v1/walkthrough/' + encodeURIComponent(activeNs), {});         // POST -> start
+    _walkPoll = setInterval(async () => {
+      try {
+        const p = await api('/v1/walkthrough/' + encodeURIComponent(activeNs));
+        if (p.status === 'ready') { clearInterval(_walkPoll); _walkPoll = null; _walk = p; renderWalkthrough(); }
+      } catch (_){ /* keep polling */ }
+    }, 4000);
+  } catch (e){ $('#stream').innerHTML = emptyState('Walkthrough failed', e.message); }
+}
+
+function renderWalkthrough(){
+  if (!_walk) return;
+  const w = _walk;
+  const toc = (w.sections || []).map((s, i) => '<a href="#wt' + i + '">' + esc(s.title) + '</a>').join('');
+  const stack = (w.stack || []).map(s => '<span class="wt-chip">' + esc(s) + '</span>').join('');
+  let secs = '';
+  (w.sections || []).forEach((s, i) => {
+    secs += '<div class="wt-sec" id="wt' + i + '"><h3>' + esc(s.title) + '</h3>'
+      + '<div class="wt-body">' + md(s.body || '') + '</div>'
+      + ((s.files && s.files.length)
+          ? '<div class="wt-files"><b>Files:</b> ' + s.files.map(f => '<code class="openfile" data-openfile="' + esc(f) + '">' + esc(f) + '</code>').join(' ') + '</div>'
+          : '')
+      + '</div>';
+  });
+  const wire = w.wiring ? '<div class="wt-sec"><h3>How the files connect</h3>' + renderWiring(w.wiring) + '</div>' : '';
+  const offline = (w.generated_with === 'structural')
+    ? '<div class="wt-offline">Offline outline — set an LLM backend (e.g. <code>ONBOARDING_LLM_BACKEND=groq</code>) and re-open for the full plain-English write-up.</div>'
+    : '';
+  $('#stream').innerHTML = '<div class="wt">'
+    + '<div class="wt-h"><strong>' + esc(w.title || ('Walkthrough — ' + activeNs)) + '</strong>'
+    + '<div class="wt-actions">'
+    + '<button class="wt-btn" onclick="printWalkthrough()">⤓ Save as PDF</button>'
+    + '<button class="wt-btn" onclick="downloadWalkthroughMd()">⤓ Markdown</button>'
+    + '<button class="wt-btn" onclick="closeWalkthrough()">✕ close</button></div></div>'
+    + (stack ? '<div class="wt-stack">' + stack + '</div>' : '')
+    + offline
+    + '<div class="wt-toc">' + toc + '</div>'
+    + secs + wire + '</div>';
+  $('#stream').scrollTop = 0;
+}
+
+function walkToMarkdown(){
+  const w = _walk; let out = '# ' + (w.title || activeNs) + '\n\n';
+  if (w.stack && w.stack.length) out += '**Stack:** ' + w.stack.join(', ') + '\n\n';
+  (w.sections || []).forEach(s => {
+    out += '## ' + s.title + '\n\n' + (s.body || '') + '\n\n';
+    if (s.files && s.files.length) out += '_Files: ' + s.files.join(', ') + '_\n\n';
+  });
+  return out;
+}
+function downloadWalkthroughMd(){
+  if (!_walk) return;
+  const blob = new Blob([walkToMarkdown()], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (activeNs || 'walkthrough') + '-walkthrough.md';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function printWalkthrough(){
+  if (!_walk) return;
+  const w = _walk;
+  let body = '';
+  (w.sections || []).forEach(s => {
+    body += '<section><h2>' + esc(s.title) + '</h2>' + md(s.body || '')
+      + ((s.files && s.files.length) ? '<p class="files">Files: ' + s.files.map(esc).join(', ') + '</p>' : '')
+      + '</section>';
+  });
+  const html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(w.title || 'Walkthrough') + '</title>'
+    + '<style>body{font-family:Segoe UI,Arial,sans-serif;max-width:820px;margin:32px auto;padding:0 24px;color:#1a1a1a;line-height:1.7}'
+    + 'h1{font-size:25px} h2{font-size:18px;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:30px}'
+    + 'code{background:#f3f0eb;border:1px solid #e3ddd3;border-radius:4px;padding:0 4px;font-family:Consolas,monospace;font-size:90%;color:#9a4a28}'
+    + '.files{font-size:12px;color:#888;margin-top:8px} .stack{color:#555} .li{display:block;margin:3px 0} strong{font-weight:600}'
+    + '</style></head><body><h1>' + esc(w.title || ('Walkthrough — ' + activeNs)) + '</h1>'
+    + (w.stack && w.stack.length ? '<p class="stack"><b>Stack:</b> ' + esc(w.stack.join(', ')) + '</p>' : '')
+    + body + '</body></html>';
+  const win = window.open('', '_blank');
+  if (!win){ toast('Allow pop-ups to save as PDF', true); return; }
+  win.document.write(html); win.document.close(); win.focus();
+  setTimeout(() => win.print(), 350);
+}
+function closeWalkthrough(){
+  if (_walkPoll) { clearInterval(_walkPoll); _walkPoll = null; }
+  _walk = null;
+  $('#stream').innerHTML = emptyState(activeNs || '', 'Walkthrough closed — open it again any time from the left.');
+}
+
+const PHASES = ['searching the index', 'weighing the sources', 'reading the surrounding code',
+                'composing a grounded answer', 'verifying citations'];
+
+async function send(){
+  const q = $('#q').value.trim();
+  if (!q) return;
+  if (!activeNs) return toast('Ingest or select a repo first', true);
+  $('#q').value = '';
+  addTurn('<span class="ps1">Q</span><span>' + esc(q) + '</span>', 'user');
+  const t = addTurn('<div class="thinking">' + KNOT + '<span class="phase">'
+    + PHASES[0] + '…</span></div>', 'bot');
+  let pi = 0;
+  const phaser = setInterval(() => {
+    const p = t.querySelector('.phase');
+    if (p) p.textContent = PHASES[(++pi) % PHASES.length] + '…';
+  }, 1700);
+  try {
+    const payload = history.slice(-12).map(h => ({ role: h.role, content: String(h.content).slice(0, 1000) }));
+    const d = await api('/v1/ask', { namespace: activeNs, question: q, history: payload });
+    clearInterval(phaser);
+    history.push({ role: 'user', content: q });
+    history.push({ role: 'assistant', content: d.answer });
+    const ms = d.trace && d.trace.duration_ms ? (d.trace.duration_ms / 1000).toFixed(1) + 's' : '';
+    const model = d.trace && d.trace.model_used ? d.trace.model_used : '';
+    t.innerHTML = '<div class="answer"></div>';
+    const _sm = {}; (d.sources || []).forEach(s => { _sm[s.path] = s; }); t._srcMap = _sm;
+    const tail = renderWiring(d.wiring)
+      + renderSources(d)
+      + '<div class="ans-meta">'
+      + (d.grounded ? '<span class="chip ok">✓ grounded</span>' : '<span class="chip bad">⚠ ungrounded</span>')
+      + '<span>' + esc(model) + '</span>' + (ms ? '<span>· ' + ms + '</span>' : '')
+      + '</div>';
+    typeInto(t.querySelector('.answer'), md(d.answer), () => {
+      t.insertAdjacentHTML('beforeend', tail);
+      addCopyButton(t, d.answer);
+      scrollBottom();
+    });
+  } catch (e){
+    clearInterval(phaser);
+    t.innerHTML = '<div class="answer" style="color:var(--bad)">⚠ ' + esc(e.message) + '</div>';
+  }
+}
+
+$('#send').onclick = send;
+$('#tourBtn').onclick = startTour;
+$('#walkBtn').onclick = startWalkthrough;
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFileViewer(); });
+// any element tagged data-openfile (tour stop path, walkthrough file chip) opens the full file
+$('#stream').addEventListener('click', e => {
+  const el = e.target.closest('[data-openfile]');
+  if (el){ e.preventDefault(); openFileViewer(el.getAttribute('data-openfile')); }
+});
+$('#clearBtn').onclick = async () => {
+  history = [];
+  if (activeNs){ try { await api('/v1/chat/' + encodeURIComponent(activeNs), undefined, 'DELETE'); } catch {} }
+  $('#stream').innerHTML = emptyState('Log cleared', 'Context history wiped — server side too. Ask away.');
+};
+$('#resyncBtn').onclick = async () => {
+  if (!activeNs) return toast('Select a repo first', true);
+  const btn = $('#resyncBtn'); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '↻ Re-syncing…';
+  try {
+    const r = await api('/v1/resync/' + encodeURIComponent(activeNs), {});
+    toast('Re-syncing "' + activeNs + '" (' + (r.mode || '') + ') — fresh commits & code will appear shortly');
+    startBriefingPoll(activeNs);  // briefing regenerates from the fresh index
+  } catch (e){ toast('Re-sync failed: ' + e.message, true); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+};
+
+loadNamespaces();
+</script>
+</body>
+</html>

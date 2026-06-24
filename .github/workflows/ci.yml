@@ -1,0 +1,39 @@
+name: ci
+
+# Quality gate: run the unit/API tests and the offline eval regression gate on
+# every push and pull request. The eval runner exits non-zero if the pass rate
+# drops below the threshold (default 1.0), so a regression blocks the build.
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Unit + API tests
+        run: python -m pytest -q
+
+      - name: Offline eval regression gate
+        # hermetic: mock LLM + tfidf, no network; exits non-zero on regression
+        run: python -m evals.runner --threshold 1.0
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: evals/results.json

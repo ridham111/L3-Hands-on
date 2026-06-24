@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+trace.json
+evals/results.json
+evals/eval_trace.jsonl
+.pytest_cache/
+.kt_index/
+*.log
