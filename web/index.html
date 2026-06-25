@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -383,17 +383,23 @@
   .fv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:none;
     align-items:center;justify-content:center;padding:24px}
   .fv-overlay.open{display:flex}
-  .fv-modal{background:var(--card);border:1px solid var(--line-strong);border-radius:14px;
+  .fv-modal{background:var(--card);border:1px solid var(--line-strong);border-radius:18px;
     width:min(940px,95vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);overflow:hidden}
   .fv-head{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--bg-2)}
   .fv-head .fv-path{flex:1;min-width:0;font-family:var(--f-mono);font-size:12.5px;color:var(--text);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
   .fv-x{background:transparent;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 8px;border-radius:6px;flex:none}
   .fv-x:hover{color:var(--text);background:rgba(255,255,255,.06)}
-  .fv-body{overflow:auto;padding:14px 16px}
+  .fv-body{overflow:auto;padding:12px}
   .fv-meta{font-size:11px;color:var(--muted);margin-bottom:10px}
   .fv-trunc{color:var(--brand-ink)}
-  .fv-code{margin:0;font-family:var(--f-mono);font-size:12px;line-height:1.62;color:var(--body);white-space:pre;tab-size:4}
+  .fv-code{
+    margin:0;font-family:var(--f-mono);font-size:12px;line-height:1.62;
+    color:var(--body);white-space:pre;tab-size:4;
+    background:var(--code-bg);border:1px solid var(--line);
+    border-radius:12px;padding:14px 18px;
+    overflow-x:auto;overflow-y:visible;min-width:0;
+  }
   .fv-loading{color:var(--muted);font-size:13px;padding:26px;text-align:center;font-style:italic}
   /* docked-right mode (wide screens): the file sits beside the chat instead of
      over it; #app.fv-docked shrinks the chat grid so nothing is hidden */
@@ -595,6 +601,128 @@
     #msgs{padding:18px 16px 12px}
     .composer{padding:12px 16px 14px}
   }
+
+  /* ---------- theme toggle button ---------- */
+  .theme-toggle{
+    margin-left:auto; border:1px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:8px; padding:6px 10px; cursor:pointer; display:flex; align-items:center;
+    gap:6px; font-size:11.5px; font-weight:600; font-family:var(--f-ui);
+    transition:color .15s, border-color .15s, background .15s;
+  }
+  .theme-toggle:hover{color:var(--text);border-color:var(--brand)}
+  .sys{margin-left:0}
+
+  /* ---------- light theme — premium clean ---------- */
+  [data-theme="light"]{
+    --bg:#eaecf4; --bg-2:#e2e5ef; --card:#ffffff; --inset:#d8dce8; --code-bg:#1e1b2e;
+    --line:#dde0e8; --line-strong:#cdd0da;
+    --text:#111318; --body:#363b4a; --muted:#6b7280; --faint:#9ca3af;
+    --brand:#5b38cc; --brand-deep:#4a2eb0; --brand-ink:#5b38cc;
+    --brand-soft:rgba(91,56,204,.1); --brand-ring:rgba(91,56,204,.22);
+    --ok:#16a34a; --ok-soft:rgba(22,163,74,.1);
+    --bad:#dc2626; --bad-soft:rgba(220,38,38,.1);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.06),0 1px 4px rgba(0,0,0,.04);
+    --shadow-md:0 2px 6px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.05);
+    --shadow-lg:0 8px 24px rgba(0,0,0,.09),0 20px 48px rgba(0,0,0,.07);
+  }
+  [data-theme="light"] body{
+    background-color:#eaecf4;
+    background-image:
+      radial-gradient(ellipse 75% 55% at 8% 18%,  rgba(138,110,255,.16) 0%,transparent 58%),
+      radial-gradient(ellipse 60% 50% at 92% 82%,  rgba(91,56,204,.13) 0%,transparent 58%),
+      radial-gradient(ellipse 50% 65% at 52% 2%,   rgba(168,140,255,.09) 0%,transparent 52%),
+      radial-gradient(ellipse 45% 40% at 78% 30%,  rgba(110,80,230,.07) 0%,transparent 50%);
+  }
+  /* header */
+  [data-theme="light"] header{border-bottom-color:#dde0e8;box-shadow:0 1px 0 rgba(0,0,0,.06);background:rgba(234,236,244,.9);backdrop-filter:blur(14px)}
+  /* sidebar */
+  [data-theme="light"] aside{background:#eceef2;border-right-color:#dde0e8}
+  [data-theme="light"] .sec-h{color:var(--muted)}
+  /* nav items */
+  [data-theme="light"] .ns-item:hover{background:rgba(91,56,204,.07)}
+  [data-theme="light"] .ns-item.active{background:rgba(91,56,204,.11);color:var(--brand)}
+  /* chat bubbles */
+  [data-theme="light"] .user-bubble{background:#ede9ff;border-color:#d4caef;color:#1c1830}
+  [data-theme="light"] .user-av{background:#e2dcf8;border-color:#ccc4ee}
+  [data-theme="light"] .user-av svg{stroke:#5b38cc}
+  [data-theme="light"] .bot-av{background:var(--brand)}
+  [data-theme="light"] .bot-card{
+    background:#f8f9fc;border-color:#dde0e8;
+    box-shadow:0 1px 3px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.04);
+  }
+  [data-theme="light"] .bot-card:hover{border-color:#c5c9d4;box-shadow:0 2px 8px rgba(0,0,0,.07),0 8px 24px rgba(0,0,0,.05)}
+  /* code blocks — terminal-style dark window */
+  [data-theme="light"] .answer pre,
+  [data-theme="light"] .tour-code,
+  [data-theme="light"] .src-snippet pre{
+    background:#22203a;border:1px solid #36335a;
+    border-radius:10px;color:#cac4e4;
+    padding-top:40px !important;position:relative;overflow:hidden;
+  }
+  [data-theme="light"] .answer pre::before,
+  [data-theme="light"] .tour-code::before,
+  [data-theme="light"] .src-snippet pre::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:34px;
+    background:#2e2b4c;border-bottom:1px solid #3e3a64;
+    border-radius:9px 9px 0 0;
+  }
+  [data-theme="light"] .answer pre::after,
+  [data-theme="light"] .tour-code::after,
+  [data-theme="light"] .src-snippet pre::after{
+    content:'';position:absolute;top:12px;left:14px;
+    width:9px;height:9px;border-radius:50%;
+    background:#ff5f57;
+    box-shadow:18px 0 0 #ffbd2e,36px 0 0 #28c840;
+    pointer-events:none;
+  }
+  [data-theme="light"] .wt-body code{background:#eceef2;border-color:#d4d7e0;color:var(--brand-ink)}
+  [data-theme="light"] .answer code:not(pre code){background:#edeaf8;border-color:#d4ccef;color:var(--brand-ink)}
+  /* fv/fileview code */
+  [data-theme="light"] .fv-code{background:#22203a;color:#cac4e4;border-color:#36335a;border-radius:12px}
+  /* src/answer metadata */
+  [data-theme="light"] .src-bar{background:#eceef2;border-bottom-color:#dde0e8}
+  [data-theme="light"] .srcs-block{background:#f9fafb;border-top-color:#dde0e8}
+  [data-theme="light"] .src-card{border-bottom-color:#e8eaee}
+  [data-theme="light"] .src-card:hover .src-card-head{background:rgba(91,56,204,.04)}
+  [data-theme="light"] .ans-meta{background:#eceef2;border-color:#dde0e8}
+  /* tabs & toggles */
+  [data-theme="light"] .bar-tab.active{background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,.1);color:var(--brand)}
+  [data-theme="light"] .bar-toggle{background:#eceef2;border-color:#d4d7e0}
+  /* inputs */
+  [data-theme="light"] input{background:#ffffff;border-color:#cdd0da;color:var(--text);box-shadow:inset 0 1px 2px rgba(0,0,0,.04)}
+  [data-theme="light"] input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-ring),inset 0 1px 2px rgba(0,0,0,.02)}
+  /* chips */
+  [data-theme="light"] .chip.ok{color:#15803d;background:rgba(22,163,74,.1)}
+  [data-theme="light"] .chip.bad{color:#b91c1c;background:rgba(220,38,38,.1)}
+  [data-theme="light"] .chip.info{color:#5b38cc;background:rgba(91,56,204,.1)}
+  /* scrollbar */
+  [data-theme="light"] ::-webkit-scrollbar-thumb{background:#c4c8d0;border-color:var(--bg)}
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover{background:#b0b4be}
+  /* misc */
+  [data-theme="light"] .turn.bot::before{display:none}
+  [data-theme="light"] .orient-ghost{background:#eceef2;color:var(--body);border-color:#cdd0da}
+  [data-theme="light"] .composer{background:#eceef2;border-top-color:#dde0e8}
+  [data-theme="light"] .thinking{color:var(--muted)}
+  /* wiring diagram — theme-sensitive */
+  [data-theme="light"] svg.wire .wlbl{fill:rgba(16,14,22,.82)}
+  [data-theme="light"] svg.wire .wn{fill:#f2f3f6}
+  [data-theme="light"] svg.wire .wtooltip rect{fill:#ffffff;stroke:#d4d7e0}
+  [data-theme="light"] svg.wire .wtooltip text{fill:#111318}
+  [data-theme="light"] svg.wire .wsep{stroke:#d4d7e0}
+  /* rounder corners throughout light mode */
+  [data-theme="light"] .bot-card{border-radius:18px !important;border-top-left-radius:10px !important}
+  [data-theme="light"] .user-bubble{border-radius:18px !important;border-bottom-right-radius:8px !important}
+  [data-theme="light"] .bot-av,[data-theme="light"] .user-av{border-radius:12px}
+  [data-theme="light"] input{border-radius:12px !important}
+  [data-theme="light"] .composer input{border-radius:14px !important}
+  [data-theme="light"] .composer .btn{border-radius:14px !important}
+  [data-theme="light"] .gap{border-radius:16px !important}
+  [data-theme="light"] .bar-toggle{border-radius:12px !important}
+  [data-theme="light"] .wt-btn{border-radius:10px !important}
+  [data-theme="light"] .src-snippet pre,[data-theme="light"] .fv-modal{border-radius:14px !important}
+  [data-theme="light"] .tour-stop{border-radius:16px !important}
+  [data-theme="light"] .ans-meta{border-radius:0}
+  [data-theme="light"] .ns-item{border-radius:10px !important}
 </style>
 </head>
 <body>
@@ -616,6 +744,10 @@
     <h1>Cortex</h1>
     <span class="tag">Codebase intelligence</span>
   </div>
+  <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" onclick="toggleTheme()">
+    <svg id="themeIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <span id="themeLabel">Light</span>
+  </button>
   <div class="sys"><span class="dot" id="sysdot"></span><span id="sysline">connecting…</span></div>
 </header>
 
@@ -1547,6 +1679,25 @@ $('#resyncBtn').onclick = async () => {
   } catch (e){ toast('Re-sync failed: ' + e.message, true); }
   finally { btn.disabled = false; btn.textContent = orig; }
 };
+
+/* ---------- theme ---------- */
+const MOON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+const SUN_SVG  = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('cortex-theme', theme);
+  const icon = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if (icon) icon.outerHTML = (theme === 'dark' ? SUN_SVG : MOON_SVG).replace('<svg ', '<svg id="themeIcon" ');
+  if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+/* apply saved preference on load (default: dark) */
+applyTheme(localStorage.getItem('cortex-theme') || 'dark');
 
 loadNamespaces();
 </script>
