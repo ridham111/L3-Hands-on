@@ -331,6 +331,16 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
             provider = get_provider(settings, backend=request.backend or settings.backend)
         else:
             provider = get_provider(settings)
+
+    # ── Level-3 Agent path ───────────────────────────────────────────────────
+    # Route to the agentic loop whenever the active provider supports tool use
+    # (complete_turn). Currently that is ClaudeProvider and FallbackProvider
+    # whose primary is Claude. Other backends fall through to the RAG pipeline.
+    if hasattr(provider, "complete_turn"):
+        from .agent import agent_ask
+        return agent_ask(request, settings=settings, provider=provider)
+    # ────────────────────────────────────────────────────────────────────────
+
     store = get_store(settings)
     trace_id = new_trace_id()
     errors: list[str] = []

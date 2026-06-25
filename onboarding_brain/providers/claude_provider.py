@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from ..config import Settings
-from .base import LLMProvider, LLMResult
+from .base import LLMProvider, LLMResult, ToolCall, TurnResult
 
 
 def _claude_auth_token() -> str | None:
@@ -67,3 +67,36 @@ class ClaudeProvider(LLMProvider):
             "",
         )
         return LLMResult(text=text, model=f"claude/{self._model}")
+
+    def complete_turn(
+        self,
+        system: str,
+        messages: list[dict],
+        tools: list[dict],
+    ) -> TurnResult:
+        """Single LLM turn for the agentic loop.
+
+        Sends messages + tool definitions; returns stop_reason, any text, and
+        the list of tool calls the model wants to make. raw_content holds the
+        native Anthropic content-block list so it can be re-sent verbatim in
+        the next turn (required by the Anthropic multi-turn tool-use protocol).
+        """
+        response = self._client.messages.create(
+            model=self._model,
+            max_tokens=self.settings.max_tokens,
+            system=system,
+            tools=tools,
+            messages=messages,
+        )
+        text = next((b.text for b in response.content if b.type == "text"), "")
+        tool_calls = [
+            ToolCall(id=b.id, name=b.name, input=dict(b.input))
+            for b in response.content
+            if b.type == "tool_use"
+        ]
+        return TurnResult(
+            stop_reason=response.stop_reason or "end_turn",
+            text=text,
+            tool_calls=tool_calls,
+            raw_content=response.content,
+        )

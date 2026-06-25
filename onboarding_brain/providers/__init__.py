@@ -49,6 +49,12 @@ class FallbackProvider(LLMProvider):
         except Exception:
             return self.backup._complete(system, user)
 
+    def complete_turn(self, system: str, messages: list, tools: list):
+        """Delegate agentic tool-use turns to the primary if it supports them."""
+        if hasattr(self.primary, "complete_turn"):
+            return self.primary.complete_turn(system, messages, tools)
+        raise LLMError(f"Primary provider {self.primary.name!r} does not support tool use")
+
 
 def get_provider(settings: Settings | None = None, backend: str | None = None) -> LLMProvider:
     """Build the LLM provider. Pass `backend` to force a specific one (e.g. the

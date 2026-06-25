@@ -176,6 +176,21 @@ class VectorStore(abc.ABC):
                 return {"id": c["id"], "score": 0.0, "text": c["text"], "metadata": c["metadata"]}
         return None
 
+    def grep_chunks(self, namespace: str, pattern: str, max_results: int = 25) -> list[dict]:
+        """Text search over indexed chunks — returns chunks whose text matches
+        the given regex pattern (case-insensitive). Used by the agent tool."""
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+        except re.error:
+            regex = re.compile(re.escape(pattern), re.IGNORECASE)
+        results = []
+        for c in self._load_chunk_docs(namespace):
+            if regex.search(c.get("text", "")):
+                results.append({"id": c["id"], "score": 0.0, "text": c["text"], "metadata": c["metadata"]})
+                if len(results) >= max_results:
+                    break
+        return results
+
     @abc.abstractmethod
     def index(self, namespace: str, chunks: list[dict], meta: dict) -> None: ...
 

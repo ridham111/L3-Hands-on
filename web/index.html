@@ -271,6 +271,7 @@
   }
   .chip.ok{color:var(--brand-ink);background:var(--brand-soft)}
   .chip.bad{color:var(--bad);background:var(--bad-soft)}
+  .chip.info{color:#6366f1;background:rgba(99,102,241,.12)}
   .chip.cited{color:var(--brand-ink);background:var(--brand-soft);padding:1px 9px;font-weight:600}
 
   /* source panel — single file viewer, populated on wiring node click */
@@ -1384,6 +1385,9 @@ async function send(){
       + renderSources(d)
       + '<div class="ans-meta">'
       + (d.grounded ? '<span class="chip ok">✓ grounded</span>' : '<span class="chip bad">⚠ ungrounded</span>')
+      + (d.trace && d.trace.strategy === 'agent' && d.trace.grounding
+          ? '<span class="chip info">' + (d.trace.grounding.tool_calls || 0) + ' tool calls · ' + (d.trace.grounding.iterations || 0) + ' steps</span>'
+          : '')
       + '<span>' + esc(model) + '</span>' + (ms ? '<span>· ' + ms + '</span>' : '')
       + '</div>';
     typeInto(t.querySelector('.answer'), md(d.answer), () => {
