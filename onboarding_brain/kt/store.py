@@ -240,9 +240,8 @@ class TfidfStore(VectorStore):
         results = []
         for i in order:
             score = float(sims[i])
-            # 0.02 cosine floor — chunks with almost no shared vocabulary
-            # with the query are noise, not evidence; drop them before re-ranking
-            if score < 0.02:
+            # 0.005 cosine floor — only drop truly zero-overlap chunks
+            if score < 0.005:
                 continue
             c = e["chunks"][int(i)]
             results.append({

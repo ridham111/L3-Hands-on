@@ -141,13 +141,6 @@
   .ns .meta{font-size:11.5px;color:var(--muted);margin-top:1px}
   .empty-side{font-size:12.5px;color:var(--muted)}
 
-  .brief{
-    font-size:12.5px;color:var(--body);background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:13px 14px;box-shadow:var(--shadow-sm);line-height:1.55;
-  }
-  .brief b{font-size:13px}
-  .brief .src-line{font-size:11px;color:var(--muted);margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
-
   .pill{
     display:block; width:100%; text-align:left; cursor:pointer; margin-bottom:6px;
     background:var(--card); border:1px solid var(--line); border-radius:9px;
@@ -316,6 +309,24 @@
   }
   .tour-start:hover{background:var(--brand-deep)}
   .tour-blurb{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.45}
+  /* walkthrough loading skeleton */
+  .wt-loading{display:flex;flex-direction:column;align-items:center;padding:8vh 0 0;gap:0}
+  .wt-l-knot{width:54px;height:54px;margin-bottom:18px}
+  .wt-l-knot .knot{animation:knotloop 2s cubic-bezier(.45,.05,.55,.95) infinite;stroke-width:5}
+  .wt-l-phase{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    font-family:var(--f-mono);font-weight:600;margin:0 0 28px;transition:opacity .4s}
+  .wt-skeleton{width:min(480px,90%)}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  .wt-sk-h{height:11px;border-radius:6px;margin-bottom:10px;
+    background:linear-gradient(90deg,var(--inset) 25%,var(--line-strong) 50%,var(--inset) 75%);
+    background-size:300% 100%;animation:shimmer 2.2s linear infinite}
+  .wt-sk-l{height:8px;border-radius:4px;margin-bottom:7px;
+    background:linear-gradient(90deg,var(--inset) 25%,var(--line-strong) 50%,var(--inset) 75%);
+    background-size:300% 100%;animation:shimmer 2.2s linear infinite}
+  .wt-sk-sep{height:1px;background:var(--line);margin:16px 0 14px}
+  .wt-sk-h.d1{animation-delay:.1s}.wt-sk-h.d2{animation-delay:.3s}.wt-sk-h.d3{animation-delay:.5s}
+  .wt-sk-l.a{width:88%}.wt-sk-l.b{width:72%}.wt-sk-l.c{width:82%}.wt-sk-l.d{width:58%}.wt-sk-l.e{width:78%}.wt-sk-l.f{width:64%}
+
   /* full project walkthrough */
   .wt{max-width:860px;margin:0 auto;padding:8px 4px 60px}
   .wt-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
@@ -484,6 +495,7 @@
   svg.wire .wnode:hover .wn{filter:brightness(1.18)}
   @keyframes wedraw{from{opacity:0}to{}}
 
+
   /* ---------- toasts ---------- */
   #toasts{position:fixed;right:18px;bottom:18px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:430px}
   .toast{
@@ -545,28 +557,20 @@
 
 <div class="bar">
   <div class="bar-tabs">
-    <button class="bar-tab active" id="tabLocal" onclick="switchIngestTab('local')">📁 Local path</button>
-    <button class="bar-tab" id="tabClone" onclick="switchIngestTab('clone')">🔗 Git clone URL</button>
+    <button class="bar-tab" id="tabLocal" onclick="switchIngestTab('local')">Local path</button>
+    <button class="bar-tab active" id="tabClone" onclick="switchIngestTab('clone')">Git clone URL</button>
   </div>
   <div class="bar-form">
-    <div class="bar-pane active" id="paneLocal">
+    <div class="bar-pane" id="paneLocal">
       <div class="field grow">
         <label for="repo">Local repository path</label>
         <input id="repo" placeholder="C:\Users\you\projects\my-repo" spellcheck="false" />
       </div>
     </div>
-    <div class="bar-pane" id="paneClone">
+    <div class="bar-pane active" id="paneClone">
       <div class="field grow">
         <label for="cloneUrl">Git clone URL</label>
-        <input id="cloneUrl" placeholder="https://bitbucket.org/workspace/repo.git" spellcheck="false" oninput="updateCloneHint()" />
-      </div>
-      <div class="field">
-        <label for="cloneUser">Username <span style="color:var(--faint);font-weight:500">(private — leave blank for browser login)</span></label>
-        <input id="cloneUser" placeholder="email or username" size="18" spellcheck="false" oninput="updateCloneHint()" />
-      </div>
-      <div class="field">
-        <label for="cloneToken">Token / Password <span style="color:var(--faint);font-weight:500">(or leave blank)</span></label>
-        <input id="cloneToken" type="password" placeholder="ATATT… or ghp_…" size="14" spellcheck="false" oninput="updateCloneHint()" />
+        <input id="cloneUrl" placeholder="https://bitbucket.org/workspace/repo.git" spellcheck="false" />
       </div>
     </div>
     <div class="field">
@@ -579,11 +583,6 @@
     </div>
     <button class="btn" id="ingestBtn">Index</button>
   </div>
-  <div id="cloneHint" style="display:none;align-items:center;gap:8px;padding:6px 28px 10px;font-size:11.5px;color:var(--brand-ink);background:rgba(221,122,91,.07);border-top:1px solid rgba(221,122,91,.15);transition:opacity .4s">
-    <i class="ti ti-info-circle" aria-hidden="true"></i>
-    <span>Browser login opens automatically — finish in the popup.</span>
-    <span onclick="dismissCloneHint()" title="dismiss" style="margin-left:auto;cursor:pointer;color:var(--faint);padding:0 4px;font-size:13px;line-height:1">✕</span>
-  </div>
 </div>
 
 <main>
@@ -592,15 +591,11 @@
       <div class="sec-h">Indexed repositories</div>
       <div id="nsList"><div class="empty-side">None yet — ingest one above.</div></div>
     </div>
-    <div class="sec" id="briefSec" style="display:none">
-      <div class="sec-h">Day-1 briefing</div>
-      <div class="brief" id="brief"></div>
-    </div>
     <div class="sec" id="tourSec" style="display:none">
       <div class="sec-h">New here?</div>
-      <button id="tourBtn" class="tour-start"><span class="ti-tour">🧭</span> Start guided tour</button>
+      <button id="tourBtn" class="tour-start">Start guided tour</button>
       <div class="tour-blurb">A guided, ordered path through the codebase — where to start and what to read next.</div>
-      <button id="walkBtn" class="tour-start" style="margin-top:10px;background:var(--card);color:var(--brand-ink);border-color:var(--line-strong)">📖 Full project walkthrough</button>
+      <button id="walkBtn" class="tour-start" style="margin-top:10px;background:var(--card);color:var(--brand-ink);border-color:var(--line-strong)">Full project walkthrough</button>
       <div class="tour-blurb">A complete, plain-English deep dive — stack, routing, features, business logic, data — that you can read or save as PDF.</div>
     </div>
     <div class="sec" id="startSec" style="display:none">
@@ -659,6 +654,7 @@
 <script>
 const $ = s => document.querySelector(s);
 let activeNs = null, history = [], nsMeta = {};
+
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KNOT = '<svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">'
   + '<path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
@@ -732,7 +728,7 @@ function typeInto(el, html, onDone){
   if (REDUCED){ el.innerHTML = html; onDone && onDone(); return; }
   const src = document.createElement('div'); src.innerHTML = html;
   const total = (src.textContent || '').length;
-  const perTick = Math.max(3, Math.round(total / 140));   // whole answer in ~2.3s
+  const perTick = Math.max(1, Math.round(total / 300));   // whole answer in ~5s
   el.innerHTML = ''; el.classList.add('typing');
   let queue = []; src.childNodes.forEach(n => queue.push({ n, dest: el }));
   let curText = null, curNode = null, pos = 0, skipped = false;
@@ -774,6 +770,21 @@ function typeInto(el, html, onDone){
     $('#sysline').textContent = (h.backend || '?') + ' · v' + (h.version || '?');
   } catch { $('#sysline').textContent = 'offline'; }
 })();
+
+/* ---------- pending sidebar entry during ingest ---------- */
+function addPendingNs(label){
+  const c = $('#nsList');
+  const existing = c.querySelector('.ns-pending');
+  if (existing) existing.remove();
+  const row = document.createElement('div');
+  row.className = 'ns ns-pending';
+  row.style.opacity = '.6';
+  row.innerHTML = '<div class="idx">…</div>'
+    + '<div style="min-width:0"><div class="nm">' + esc(label) + '</div>'
+    + '<div class="meta" style="color:var(--brand-ink)">indexing…</div></div>';
+  c.querySelector('.empty-side') && (c.innerHTML = '');
+  c.prepend(row);
+}
 
 /* ---------- namespaces ---------- */
 async function loadNamespaces(){
@@ -844,24 +855,12 @@ async function selectNamespace(ns){
   const restored = await restoreChatLog(ns);
   if (!restored) $('#stream').innerHTML = emptyState(ns, 'Index ready. Ask a question, or pick a starter on the left.');
   try {
-    // Read the briefing directly by namespace (reads briefing.json on disk).
-    // Never re-POST /v1/ingest here: a cloned repo's source dir is a temp dir
-    // that was deleted after ingest, so re-ingesting would 400 and lose the
-    // briefing. Only poll when a job is actively running.
     const r = await api('/v1/briefing/' + encodeURIComponent(ns));
-    if (r.status === 'ready') showBriefing(r, ns);
-    else if (r.status === 'running') startBriefingPoll(ns);
-    // pending / failed: nothing generating and no cached briefing — chat still works
-  } catch (e){ /* briefing unavailable — chat still works */ }
+    if (r.status === 'ready') showStarters(r);
+  } catch (e){ /* starters unavailable — chat still works */ }
 }
 
-function showBriefing(d, overrideNs){
-  const ns = overrideNs || d.namespace || '';
-  if (d.overview && d.overview.answer){
-    $('#briefSec').style.display = '';
-    $('#brief').innerHTML = (ns ? '<b>' + esc(ns) + '</b><br>' : '') + md(d.overview.answer)
-      + '<div class="src-line">Sources: ' + esc((d.overview.sources || []).join(', ') || '—') + '</div>';
-  }
+function showStarters(d){
   const st = $('#starters'); st.innerHTML = '';
   (d.starter_questions || []).forEach(q => {
     const b = document.createElement('button');
@@ -872,62 +871,9 @@ function showBriefing(d, overrideNs){
   $('#startSec').style.display = (d.starter_questions || []).length ? '' : 'none';
 }
 
-let _briefingPoller = null;
-function startBriefingPoll(ns){
-  if (_briefingPoller) clearInterval(_briefingPoller);
-  $('#briefSec').style.display = '';
-  $('#brief').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:4px 0">'
-    + '⏳ Day-1 briefing generating in background…</div>';
-  _briefingPoller = setInterval(async () => {
-    try {
-      const r = await api('/v1/briefing/' + encodeURIComponent(ns));
-      if (r.status === 'ready') {
-        clearInterval(_briefingPoller); _briefingPoller = null;
-        showBriefing(r, ns);
-        toast('Day-1 briefing ready for "' + ns + '"');
-      } else if (r.status === 'failed') {
-        clearInterval(_briefingPoller); _briefingPoller = null;
-        const hint = r.error && r.error.toLowerCase().includes('quota')
-          ? 'LLM quota exceeded — re-ingest when the quota resets (usually next hour).'
-          : (r.error || 'LLM error during briefing generation.');
-        $('#brief').innerHTML = '<div style="color:var(--bad);font-size:13px;padding:4px 0">'
-          + '⚠ Briefing failed: ' + esc(hint) + '<br>'
-          + '<span style="color:var(--muted);font-size:11px">Chat still works — ask questions below.</span></div>';
-        toast('Briefing failed for "' + ns + '" — see details above', true);
-      }
-    } catch (_){ /* still generating — try again next tick */ }
-  }, 4000);
-}
-
-/* ---------- clone hint ---------- */
-let _cloneHintDismissed = false;
-let _cloneHintTimer = null;
-function dismissCloneHint(){
-  const hint = $('#cloneHint');
-  _cloneHintDismissed = true;
-  if (_cloneHintTimer){ clearTimeout(_cloneHintTimer); _cloneHintTimer = null; }
-  if (hint){ hint.style.opacity = '0'; setTimeout(() => { hint.style.display = 'none'; hint.style.opacity = '1'; }, 400); }
-}
-function updateCloneHint(){
-  const url = ($('#cloneUrl')||{}).value||'';
-  const usr = ($('#cloneUser')||{}).value||'';
-  const tok = ($('#cloneToken')||{}).value||'';
-  const hint = $('#cloneHint');
-  if (!hint) return;
-  const isHttps = url.startsWith('https://');
-  const show = isHttps && !usr && !tok && !_cloneHintDismissed;
-  if (show){
-    hint.style.display = 'flex';
-    // self-dismiss after 8s so it informs once without nagging
-    if (!_cloneHintTimer) _cloneHintTimer = setTimeout(dismissCloneHint, 8000);
-  } else if (!_cloneHintDismissed){
-    hint.style.display = 'none';
-    if (_cloneHintTimer){ clearTimeout(_cloneHintTimer); _cloneHintTimer = null; }
-  }
-}
 
 /* ---------- ingest tab switching ---------- */
-let _ingestMode = 'local';
+let _ingestMode = 'clone';
 function switchIngestTab(mode){
   _ingestMode = mode;
   document.querySelectorAll('.bar-tab').forEach(t => t.classList.remove('active'));
@@ -937,12 +883,15 @@ function switchIngestTab(mode){
 }
 
 /* ---------- ingest ---------- */
-const INGEST_STAGES = ['Walking the repository', 'Chunking code at function boundaries',
+const INGEST_STAGES_LOCAL = ['Walking the repository', 'Chunking code at function boundaries',
   'Building the search index', 'Embedding for semantic retrieval'];
-function ingestUI(isClone){
+const INGEST_STAGES_CLONE = ['Cloning the repository', 'Walking the repository',
+  'Chunking code at function boundaries', 'Building the search index', 'Embedding for semantic retrieval'];
+function ingestUI(isClone, repoLabel){
   let i = 0;
-  const LAST = INGEST_STAGES.length - 1;
-  const steps = INGEST_STAGES.map((s, k) =>
+  const STAGES = isClone ? INGEST_STAGES_CLONE : INGEST_STAGES_LOCAL;
+  const LAST = STAGES.length - 1;
+  const steps = STAGES.map((s, k) =>
     '<div class="istep" data-k="' + k + '">'
     + '<div class="istep-left"><div class="idot"></div>'
     + '<div class="istep-line"></div></div>'
@@ -952,8 +901,11 @@ function ingestUI(isClone){
   const metaEl = '<p class="imeta" id="ingestMeta">'
     + (isClone ? 'Cloning may take a moment depending on repo size. ' : '')
     + 'A new repo can take a few minutes. Re-indexing is fast.</p>';
+  const title = isClone
+    ? 'Cloning &amp; indexing' + (repoLabel ? ' <span style="color:var(--brand-ink);font-size:14px">'+esc(repoLabel)+'</span>' : '')
+    : 'Indexing the repository';
   $('#stream').innerHTML = '<div class="ingesting">' + KNOT
-    + '<h2>' + (isClone ? 'Cloning &amp; indexing' : 'Indexing the repository') + '</h2>'
+    + '<h2>' + title + '</h2>'
     + '<div class="isteps">' + steps + '</div>' + metaEl + '</div>';
   const mark = () => {
     document.querySelectorAll('.istep').forEach(el => {
@@ -961,14 +913,9 @@ function ingestUI(isClone){
       el.classList.toggle('done', k < i);
       el.classList.toggle('active', k === i);
     });
-    // when stuck on last step, update the note so user knows it's the AI writing
-    if (i === LAST) {
-      const m = $('#ingestMeta');
-      if (m) m.textContent = 'Writing the Day-1 briefing — the AI is reading your codebase. This may take up to a minute…';
-    }
   };
   mark();
-  const t = setInterval(() => { i = Math.min(i + 1, LAST); mark(); }, 2600);
+  const t = setInterval(() => { i = Math.min(i + 1, LAST); mark(); }, isClone ? 3200 : 2600);
   return () => clearInterval(t);
 }
 $('#ingestBtn').onclick = async () => {
@@ -981,27 +928,25 @@ $('#ingestBtn').onclick = async () => {
   const body = { namespace: $('#ns').value.trim() || null, rebuild: false };
   if (isClone) {
     body.clone_url = cloneUrl;
-    const tok = $('#cloneToken').value.trim();
-    const usr = $('#cloneUser').value.trim();
-    if (tok) body.clone_token = usr ? (usr + ':' + tok) : tok;
   } else {
     body.repo_path = repo;
   }
   $('#ingestBtn').disabled = true;
   $('#ingestBtn').textContent = isClone ? 'Cloning…' : 'Indexing…';
-  const stop = ingestUI(isClone);
+  // derive a display name for the sidebar from the URL or path
+  const repoLabel = isClone
+    ? (cloneUrl.split('/').pop().replace(/\.git$/, '') || cloneUrl)
+    : (repo.split(/[\\/]/).pop() || repo);
+  // show a pending entry in the sidebar immediately so the user knows what's being indexed
+  addPendingNs(repoLabel);
+  const stop = ingestUI(isClone, repoLabel);
   try {
     const d = await api('/v1/ingest', body);
     stop();
     setActive(d.namespace);
     const chunks = d.chunks_indexed + ' chunks' + (d.already_indexed ? ' (cached)' : '');
-    if (d.briefing_pending) {
-      toast('Indexed "' + d.namespace + '": ' + d.files_indexed + ' files, ' + chunks + '. Briefing generating…');
-      startBriefingPoll(d.namespace);
-    } else {
-      showBriefing(d);
-      toast('Indexed "' + d.namespace + '": ' + d.files_indexed + ' files, ' + chunks);
-    }
+    showStarters(d);
+    toast('Indexed "' + d.namespace + '": ' + d.files_indexed + ' files, ' + chunks);
     await loadNamespaces();
     setActive(d.namespace);
     const restored = await restoreChatLog(d.namespace);
@@ -1128,11 +1073,12 @@ function renderWiring(w){
     +'<span class="ek"><b style="border-top:2px solid #dd7a5b"></b>imports</span>'
     +'<span class="ek"><b style="border-top:2px dashed #7a6558"></b>same folder</span>';
 
-  return '<div class="wirewrap open" id="'+id+'">'
+  const autoOpen = w.nodes.length >= 3;
+  return '<div class="wirewrap'+(autoOpen?' open':'')+'" id="'+id+'">'
     +'<div class="wire-h" onclick="this.parentElement.classList.toggle(\'open\')">'
     +'<span class="caret">▶</span><strong>File connections</strong>'
     +'<span style="color:var(--faint);margin-left:7px;font-size:11px">'+w.nodes.length+' files · '+w.edges.length+' links</span>'
-    +'<span class="wire-hint">hover = highlight links · click = open full file</span></div>'
+    +'<span class="wire-hint">hover = highlight · click = open file</span></div>'
     +'<div class="wire-body">'
     +'<p class="wire-explain">Read <b>top → bottom</b>: the <b>MAIN</b> file is on top; each <b>arrow</b> points to a file it imports or uses next. '
     +'Hover a box to highlight its links; click to open the full file.</p>'
@@ -1275,31 +1221,58 @@ function tourAsk(){
   $('#q').value = 'Explain ' + s.path + ' — what does it do and how does it fit into the project?';
   $('#q').focus();
 }
-function closeTour(){
+async function closeTour(){
   _tour = null;
-  $('#stream').innerHTML = emptyState(activeNs || '', 'Tour closed — ask a question, or start the tour again from the left.');
+  const restored = activeNs && await restoreChatLog(activeNs);
+  if (!restored) $('#stream').innerHTML = emptyState(activeNs || '', 'Tour closed — ask a question below.');
 }
 
 /* ---------- full project walkthrough ---------- */
 let _walk = null;
 let _walkPoll = null;
+let _walkPhaseTimer = null;
+const _WT_PHASES = ['Reading files','Mapping structure','Writing sections','Almost there'];
+function _wtLoader(){
+  const sk = '<div class="wt-skeleton">'
+    + '<div class="wt-sk-h d1"></div><div class="wt-sk-l a"></div><div class="wt-sk-l b"></div>'
+    + '<div class="wt-sk-sep"></div>'
+    + '<div class="wt-sk-h d2"></div><div class="wt-sk-l c"></div><div class="wt-sk-l d"></div>'
+    + '<div class="wt-sk-sep"></div>'
+    + '<div class="wt-sk-h d3"></div><div class="wt-sk-l e"></div><div class="wt-sk-l f"></div>'
+    + '</div>';
+  return '<div class="wt-loading">'
+    + '<svg class="wt-l-knot" viewBox="0 0 100 100" aria-hidden="true"><path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>'
+    + '<p class="wt-l-phase" id="wtPhase">' + _WT_PHASES[0] + '…</p>'
+    + sk + '</div>';
+}
+function _startWtPhases(){
+  let pi = 0;
+  _walkPhaseTimer = setInterval(() => {
+    const el = $('#wtPhase');
+    if (!el){ clearInterval(_walkPhaseTimer); return; }
+    pi = (pi + 1) % _WT_PHASES.length;
+    el.style.opacity = '0';
+    setTimeout(() => { if (el) { el.textContent = _WT_PHASES[pi] + '…'; el.style.opacity = '1'; } }, 350);
+  }, 3200);
+}
+function _stopWtPhases(){ clearInterval(_walkPhaseTimer); _walkPhaseTimer = null; }
 async function startWalkthrough(){
   if (!activeNs) return toast('Select a repo first', true);
-  if (_walkPoll) { clearInterval(_walkPoll); _walkPoll = null; }
-  $('#stream').innerHTML = '<div class="empty">' + KNOT
-    + '<h2>Building the full walkthrough…</h2><p>Reading the whole project and writing it up in plain English. '
-    + 'This can take a minute on first run.</p></div>';
+  if (_walkPoll){ clearInterval(_walkPoll); _walkPoll = null; }
+  _stopWtPhases();
+  $('#stream').innerHTML = _wtLoader();
+  _startWtPhases();
   try {
-    const r = await api('/v1/walkthrough/' + encodeURIComponent(activeNs));   // GET
-    if (r.status === 'ready') { _walk = r; renderWalkthrough(); return; }
-    await api('/v1/walkthrough/' + encodeURIComponent(activeNs), {});         // POST -> start
+    const r = await api('/v1/walkthrough/' + encodeURIComponent(activeNs));
+    if (r.status === 'ready'){ _stopWtPhases(); _walk = r; renderWalkthrough(); return; }
+    await api('/v1/walkthrough/' + encodeURIComponent(activeNs), {});
     _walkPoll = setInterval(async () => {
       try {
         const p = await api('/v1/walkthrough/' + encodeURIComponent(activeNs));
-        if (p.status === 'ready') { clearInterval(_walkPoll); _walkPoll = null; _walk = p; renderWalkthrough(); }
+        if (p.status === 'ready'){ clearInterval(_walkPoll); _walkPoll = null; _stopWtPhases(); _walk = p; renderWalkthrough(); }
       } catch (_){ /* keep polling */ }
     }, 4000);
-  } catch (e){ $('#stream').innerHTML = emptyState('Walkthrough failed', e.message); }
+  } catch (e){ _stopWtPhases(); $('#stream').innerHTML = emptyState('Walkthrough failed', e.message); }
 }
 
 function renderWalkthrough(){
@@ -1372,10 +1345,12 @@ function printWalkthrough(){
   win.document.write(html); win.document.close(); win.focus();
   setTimeout(() => win.print(), 350);
 }
-function closeWalkthrough(){
-  if (_walkPoll) { clearInterval(_walkPoll); _walkPoll = null; }
+async function closeWalkthrough(){
+  if (_walkPoll){ clearInterval(_walkPoll); _walkPoll = null; }
+  _stopWtPhases();
   _walk = null;
-  $('#stream').innerHTML = emptyState(activeNs || '', 'Walkthrough closed — open it again any time from the left.');
+  const restored = activeNs && await restoreChatLog(activeNs);
+  if (!restored) $('#stream').innerHTML = emptyState(activeNs || '', 'Walkthrough closed — open it again any time from the left.');
 }
 
 const PHASES = ['searching the index', 'weighing the sources', 'reading the surrounding code',
@@ -1396,7 +1371,8 @@ async function send(){
   }, 1700);
   try {
     const payload = history.slice(-12).map(h => ({ role: h.role, content: String(h.content).slice(0, 1000) }));
-    const d = await api('/v1/ask', { namespace: activeNs, question: q, history: payload });
+    const askBody = { namespace: activeNs, question: q, history: payload };
+    const d = await api('/v1/ask', askBody);
     clearInterval(phaser);
     history.push({ role: 'user', content: q });
     history.push({ role: 'assistant', content: d.answer });
@@ -1443,7 +1419,6 @@ $('#resyncBtn').onclick = async () => {
   try {
     const r = await api('/v1/resync/' + encodeURIComponent(activeNs), {});
     toast('Re-syncing "' + activeNs + '" (' + (r.mode || '') + ') — fresh commits & code will appear shortly');
-    startBriefingPoll(activeNs);  // briefing regenerates from the fresh index
   } catch (e){ toast('Re-sync failed: ' + e.message, true); }
   finally { btn.disabled = false; btn.textContent = orig; }
 };

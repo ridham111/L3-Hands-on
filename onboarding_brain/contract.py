@@ -113,6 +113,8 @@ class AskRequest(BaseModel):
     question: str
     history: list[ChatTurn] = Field(default_factory=list)
     top_k: int | None = None
+    backend: str | None = None        # override active LLM backend (claude/groq/openrouter/mock)
+    claude_model: str | None = None   # override Claude model for this request
 
 
 class AnnotateRequest(BaseModel):

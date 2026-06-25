@@ -59,6 +59,8 @@ class Settings:
     ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "llama3.1:8b"))
 
+    claude_model: str = field(default_factory=lambda: os.getenv("CLAUDE_MODEL", "claude-opus-4-8"))
+
     # When True (default, local single-user setup), a tokenless clone of a
     # private repo lets Git Credential Manager pop a browser for OAuth. On a
     # HEADLESS server set this False so a tokenless private clone fails fast
@@ -143,6 +145,8 @@ class Settings:
             return f"openrouter/{self.openrouter_model}"
         if self.backend == "ollama":
             return f"ollama/{self.ollama_model}"
+        if self.backend == "claude":
+            return f"claude/{self.claude_model}"
         return "mock/deterministic-v1"
 
 

@@ -1,4 +1,4 @@
-"""Model-agnostic LLM provider layer (mock | groq | openrouter | ollama).
+"""Model-agnostic LLM provider layer (mock | groq | openrouter | ollama | claude).
 
 Set ONBOARDING_LLM_FALLBACK_BACKEND to chain two providers: every completion
 tries the primary first and falls back to the backup on any failure (each
@@ -24,6 +24,10 @@ def _make(backend: str, settings: Settings) -> LLMProvider:
         from .ollama_provider import OllamaProvider
 
         return OllamaProvider(settings)
+    if backend == "claude":
+        from .claude_provider import ClaudeProvider
+
+        return ClaudeProvider(settings)
     return MockProvider(settings)
 
 

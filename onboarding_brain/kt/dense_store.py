@@ -176,7 +176,7 @@ class DenseStore(VectorStore):
         results = []
         for i in order:
             score = float(sims[int(i)])
-            if score <= 0.05:  # weak match floor
+            if score <= 0.01:  # weak match floor
                 continue
             c = e["chunks"][int(i)]
             results.append({"id": c["id"], "score": round(score, 4),

@@ -239,7 +239,7 @@ def select_relevant(chunks: list[dict], k_min: int, k_max: int) -> list[dict]:
     if len(chunks) <= k_min:
         return chunks[:k_max]
     top = chunks[0].get("score") or 1e-9
-    kept = [c for c in chunks if (c.get("score") or 0.0) >= 0.35 * top]
+    kept = [c for c in chunks if (c.get("score") or 0.0) >= 0.20 * top]
     if len(kept) < k_min:
         kept = chunks[:k_min]
     return kept[:k_max]
@@ -322,8 +322,15 @@ def _mock_answer(question: str, chunks: list[dict]) -> tuple[str, list[str]]:
 
 def ask(request: AskRequest, *, settings: Optional[Settings] = None,
         provider: Optional[LLMProvider] = None) -> AskResponse:
+    import dataclasses
     settings = settings or get_settings()
-    provider = provider or get_provider(settings)
+    if not provider:
+        if request.backend or request.claude_model:
+            if request.claude_model:
+                settings = dataclasses.replace(settings, claude_model=request.claude_model)
+            provider = get_provider(settings, backend=request.backend or settings.backend)
+        else:
+            provider = get_provider(settings)
     store = get_store(settings)
     trace_id = new_trace_id()
     errors: list[str] = []
@@ -389,16 +396,34 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
         else:
             strategy = "llm"
             try:
-                result = provider.complete(CHAT_SYSTEM_PROMPT,
-                                            build_chat_prompt(request.question, chunks, history,
-                                                              settings.chat_context_budget_chars))
+                chat_prompt = build_chat_prompt(request.question, chunks, history,
+                                                settings.chat_context_budget_chars)
+                result = provider.complete(CHAT_SYSTEM_PROMPT, chat_prompt)
                 parsed = _parse(result.text)
                 answer = str(parsed.get("answer", "")).strip()
+                # If the model returned not-found but we have chunks, retry once
+                # with an explicit instruction to use the provided snippets.
+                _nf = NOT_FOUND.lower()[:20]
+                if answer.lower().startswith(_nf) and chunks:
+                    retry_system = CHAT_SYSTEM_PROMPT + (
+                        "\n\nCRITICAL OVERRIDE: The context block above contains real code snippets. "
+                        "You MUST use them. Write a grounded answer referencing those files now. "
+                        "Do NOT output not-found. This is mandatory."
+                    )
+                    result2 = provider.complete(retry_system, chat_prompt)
+                    parsed2 = _parse(result2.text)
+                    answer2 = str(parsed2.get("answer", "")).strip()
+                    if answer2 and not answer2.lower().startswith(_nf):
+                        parsed = parsed2
+                        answer = answer2
+                        errors.append("not_found_retry:success")
+                    else:
+                        errors.append("not_found_retry:failed")
                 note = str(parsed.get("general_note", "")).strip()
                 # only attach general guidance to setup/run questions; never to
                 # "what/how/where" code questions (keeps answers repo-grounded)
                 if (note and _SETUP_Q.search(request.question)
-                        and not answer.lower().startswith("i couldn't find")):
+                        and not answer.lower().startswith(NOT_FOUND.lower()[:20])):
                     answer += f"\n\n**General note (not from the repo):** {note}"
                 raw_used = parsed.get("used_sources")
                 used = [_norm_citation(str(s)) for s in raw_used] if isinstance(raw_used, list) else []
@@ -409,7 +434,8 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
     # grounding: cited sources must be retrieved snippets or, at minimum,
     # real indexed files inferred from them (e.g. named in an import)
     hallucinated, inferred = classify_citations(used, retrieved_paths, store.known_paths(namespace))
-    is_not_found = answer.strip().lower().startswith("i couldn't find")
+    _nf_prefix = NOT_FOUND.lower()[:20]
+    is_not_found = answer.strip().lower().startswith(_nf_prefix)
     grounded = not hallucinated and (bool(chunks) or is_not_found)
     status = "passed"
     if hallucinated:

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "PowerShell(& \"C:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import anthropic; print\\('OK:', anthropic.__version__\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\.venv\\\\Scripts\\\\pip.exe\" install anthropic)",
+      "PowerShell(& \"C:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install anthropic)",
+      "PowerShell(& \"C:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import anthropic; print\\('anthropic installed OK:', anthropic.__version__\\)\")",
+      "Read(//c/Users/RidhamPansuriya/Documents/mtn-insights-ui/**)",
+      "Bash(find \"C:\\\\Users\\\\RidhamPansuriya\\\\Documents\\\\mtn-insights-ui\" -type f \\\\\\( -name \"*.html\" -o -name \"*.ts\" \\\\\\) | head -50)",
+      "Bash(xargs grep -l \"mat-dialog\\\\|@Component\")",
+      "Bash(find /c/Users/RidhamPansuriya -name \"angular.json\" -maxdepth 6 2>/dev/null)",
+      "Read(//c/Users/RidhamPansuriya/**)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/health\")",
+      "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/v1/info\")",
+      "PowerShell(Get-Content \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\")",
+      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\"; Get-Item \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\" -Force | Select-Object FullName, Length)"
+    ]
+  }
+}
