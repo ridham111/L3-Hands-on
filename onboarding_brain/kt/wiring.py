@@ -9,6 +9,7 @@ Pure static analysis — no LLM, offline.
 """
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter, deque
 from typing import Optional
@@ -28,6 +29,72 @@ _IMPORT = re.compile(
 
 _CODE_EXTS = {"ts", "js", "tsx", "jsx", "mjs", "cjs", "py", "go", "java", "kt",
               "rb", "rs", "vue", "scala", "php", "swift", "cs"}
+
+# Symbol + named-import extraction regexes
+_EXPORT_TS = re.compile(
+    r'export\s+(?:default\s+)?(?:abstract\s+)?'
+    r'(?:class|function\*?|const|let|var|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)',
+)
+_EXPORT_PY = re.compile(r'^(?:async\s+)?(?:def|class)\s+([A-Za-z_][A-Za-z0-9_]*)', re.MULTILINE)
+_NAMED_IMPORT_TS = re.compile(r'import\s+\{([^}]+)\}\s+from\s+[\'"]([^\'"]+)[\'"]')
+_DEFAULT_IMPORT_TS = re.compile(r'import\s+([A-Za-z_$][A-Za-z0-9_$]*)\s+from\s+[\'"]([^\'"]+)[\'"]')
+_FROM_IMPORT_PY = re.compile(r'from\s+([\w.]+)\s+import\s+([^\n\\]+)')
+
+
+def _symbols(text: str, path: str) -> list[str]:
+    """Extract top exported symbols (functions, classes) from source text."""
+    ext = os.path.splitext(path.lower())[1].lstrip(".")
+    names: list[str] = []
+    if ext in ("ts", "tsx", "js", "jsx", "mjs"):
+        for m in _EXPORT_TS.finditer(text):
+            n = m.group(1)
+            if not n.startswith("_") and len(n) > 1:
+                names.append(n)
+    elif ext == "py":
+        for m in _EXPORT_PY.finditer(text):
+            n = m.group(1)
+            if not n.startswith("_") and len(n) > 1:
+                names.append(n)
+    else:
+        for m in re.finditer(
+            r'^(?:public\s+(?:static\s+)?)?(?:class|func|fun|def|function)\s+([A-Za-z_][A-Za-z0-9_]*)',
+            text, re.MULTILINE,
+        ):
+            n = m.group(1)
+            if not n.startswith("_") and len(n) > 1:
+                names.append(n)
+    return list(dict.fromkeys(names))[:4]
+
+
+def _imported_names(src_text: str, target_path: str) -> list[str]:
+    """Extract which names are imported FROM target_path in src_text."""
+    basename = os.path.splitext(os.path.basename(target_path))[0].lower()
+    names: list[str] = []
+    # JS/TS named: import { X, Y } from './target'
+    for m in _NAMED_IMPORT_TS.finditer(src_text):
+        raw, module = m.group(1), m.group(2)
+        module_base = module.rstrip("/").rsplit("/", 1)[-1].split(".")[0].lower()
+        if module_base == basename:
+            for n in raw.split(","):
+                n = n.strip().split(" as ")[0].strip()
+                if n and not n.startswith("*"):
+                    names.append(n)
+    # JS/TS default: import X from './target'
+    for m in _DEFAULT_IMPORT_TS.finditer(src_text):
+        name, module = m.group(1), m.group(2)
+        module_base = module.rstrip("/").rsplit("/", 1)[-1].split(".")[0].lower()
+        if module_base == basename:
+            names.append(name)
+    # Python: from module import X, Y
+    for m in _FROM_IMPORT_PY.finditer(src_text):
+        module, imported = m.group(1), m.group(2)
+        module_base = module.rsplit(".", 1)[-1].lower()
+        if module_base == basename:
+            for n in imported.split(","):
+                n = n.strip().split(" as ")[0].strip()
+                if n and n != "*" and not n.startswith("#"):
+                    names.append(n)
+    return list(dict.fromkeys(names))[:3]
 # filenames that conventionally mark an app's entry/bootstrap, any stack
 _ENTRY_BASENAMES = {"main", "__main__", "manage", "app", "server", "asgi", "wsgi",
                     "run", "cli", "index", "bootstrap", "program", "application"}
@@ -146,11 +213,14 @@ def build_wiring(namespace: str, paths: list[str], *, settings: Optional[Setting
     out_adj: dict[str, list[str]] = {p: [] for p in real}
     indeg: Counter = Counter()
 
-    def add(a: str, b: str, kind: str) -> None:
+    def add(a: str, b: str, kind: str, imports: list | None = None) -> None:
         key = tuple(sorted((a, b)))
         if a != b and key not in seen:
             seen.add(key)
-            edges.append({"from": a, "to": b, "kind": kind})
+            e: dict = {"from": a, "to": b, "kind": kind}
+            if imports:
+                e["imports"] = imports
+            edges.append(e)
             connected.add(a)
             connected.add(b)
 
@@ -162,7 +232,8 @@ def build_wiring(namespace: str, paths: list[str], *, settings: Optional[Setting
                     continue
                 dst = basekey_to_path.get(_import_basekey(t))
                 if dst and dst != src:
-                    add(src, dst, "import")
+                    imp_names = _imported_names(text_by_path.get(src, ""), dst)
+                    add(src, dst, "import", imports=imp_names or None)
                     if dst not in out_adj[src]:
                         out_adj[src].append(dst)
                         indeg[dst] += 1
@@ -206,6 +277,7 @@ def build_wiring(namespace: str, paths: list[str], *, settings: Optional[Setting
 
     order = sorted(real, key=lambda p: (depth[p], _ROLE_RANK.get(_role(p), 2), p))
     nodes = [{"id": p, "label": p.rsplit("/", 1)[-1], "role": _role(p),
-              "dir": _dirname(p), "path": p, "depth": depth[p], "entry": p == entry}
+              "dir": _dirname(p), "path": p, "depth": depth[p], "entry": p == entry,
+              "symbols": _symbols(text_by_path.get(p, ""), p)}
              for p in order]
     return {"nodes": nodes, "edges": edges, "entry": entry}

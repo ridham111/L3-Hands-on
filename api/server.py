@@ -10,16 +10,18 @@ uniform JSON errors, no stack-trace leakage.
 """
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+from queue import Empty, Queue
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from onboarding_brain import AGENT_ID, __version__
@@ -260,6 +262,68 @@ async def ask_endpoint(request: Request, _: str = Depends(require_auth)):
             status_code=503,
             detail=f"LLM backend unavailable: {exc}")
     return JSONResponse(content=resp.model_dump(mode="json"))
+
+
+@app.post("/v1/ask/stream")
+async def ask_stream_endpoint(request: Request, _: str = Depends(require_auth)):
+    """SSE endpoint — streams real agent progress events then the final answer."""
+    settings = get_settings()
+    model = _parse_body(await request.body(), AskRequest, settings.max_request_bytes)
+
+    event_queue: Queue = Queue()
+    result_holder: dict = {}
+
+    def _run() -> None:
+        try:
+            resp = kt_ask(model, settings=settings,
+                          event_callback=lambda e: event_queue.put(e))
+            result_holder["resp"] = resp
+        except ValueError as exc:
+            result_holder["err"] = {"code": 400, "message": str(exc)}
+        except (RuntimeError, ImportError, ModuleNotFoundError) as exc:
+            result_holder["err"] = {"code": 503, "message": str(exc)}
+        except Exception as exc:  # noqa: BLE001
+            result_holder["err"] = {"code": 500, "message": str(exc)}
+        finally:
+            event_queue.put({"type": "_done_sentinel"})
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+
+    async def _generate():
+        ping = 0
+        while True:
+            await asyncio.sleep(0.04)
+            ping += 1
+            drained = False
+            while True:
+                try:
+                    ev = event_queue.get_nowait()
+                except Empty:
+                    break
+                if ev.get("type") == "_done_sentinel":
+                    err = result_holder.get("err")
+                    if err:
+                        yield f"data: {json.dumps({'type': 'error', **err})}\n\n"
+                    else:
+                        resp = result_holder.get("resp")
+                        if resp:
+                            payload = resp.model_dump(mode="json")
+                            payload["type"] = "done"
+                            yield f"data: {json.dumps(payload)}\n\n"
+                    worker.join(timeout=2)
+                    return
+                yield f"data: {json.dumps(ev)}\n\n"
+                drained = True
+            if not drained and ping % 50 == 0:
+                yield ": ping\n\n"
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                 "Connection": "keep-alive"},
+    )
 
 
 @app.get("/v1/gaps/{namespace}")

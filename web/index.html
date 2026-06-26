@@ -196,11 +196,18 @@
   #msgs{flex:1;min-height:0;overflow-y:auto;padding:24px 20px 20px;scroll-behavior:smooth}
   .stream{max-width:100%;margin:0}
 
-  /* empty state */
-  .empty{margin-top:9vh;text-align:center;color:var(--muted)}
-  .empty .glyph{width:72px;height:72px;margin:0 auto 14px}
+  /* empty state — compact */
+  .empty{margin-top:10vh;text-align:center;padding:0 24px}
+  .empty h2{font-size:14px;font-weight:600;color:var(--text);margin:0 0 5px}
+  .empty p{font-size:12.5px;color:var(--muted);margin:0}
+  .q-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:18px auto 0;max-width:520px}
+  .q-chip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 15px;
+    font-size:12.5px;color:var(--body);cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+    font-family:var(--f-ui)}
+  .q-chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
   @keyframes knotdraw{to{stroke-dashoffset:0}}
   @keyframes knotloop{0%{stroke-dashoffset:1}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+  @keyframes tlfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   /* interactive ingest panel */
   .ingesting{margin-top:8vh;text-align:center;color:var(--muted)}
   .ingesting .glyph{width:44px;height:44px;margin:0 auto 10px}
@@ -255,8 +262,10 @@
   .turn.bot{display:flex;align-items:flex-start;gap:10px;background:transparent;border:none;box-shadow:none}
   .turn.bot::before{display:none}
   .bot-av{
-    width:28px;height:28px;flex:none;border-radius:8px;margin-top:2px;
-    background:var(--brand);display:grid;place-items:center;
+    width:30px;height:30px;flex:none;border-radius:50%;margin-top:3px;
+    background:linear-gradient(140deg,#9d78ff 0%,#6d28d9 100%);
+    display:grid;place-items:center;
+    box-shadow:0 2px 10px rgba(109,40,217,.4),0 0 0 1px rgba(255,255,255,.08);
   }
   .bot-av svg{display:block}
   .bot-card{
@@ -332,23 +341,31 @@
   .orient-primary:hover{background:var(--brand-deep)}
   .orient-ghost{background:var(--card);color:var(--body);border-color:var(--line-strong)}
   .orient-ghost:hover{border-color:var(--brand);color:var(--text)}
-  /* walkthrough loading skeleton */
-  .wt-loading{display:flex;flex-direction:column;align-items:center;padding:8vh 0 0;gap:0}
-  .wt-l-knot{width:54px;height:54px;margin-bottom:18px}
+  /* walkthrough loading — pipeline stages */
+  .wt-loading{display:flex;flex-direction:column;align-items:center;padding:10vh 0 0;gap:0}
+  .wt-l-knot{width:40px;height:40px;margin-bottom:44px;opacity:.85}
   .wt-l-knot .knot{animation:knotloop 2s cubic-bezier(.45,.05,.55,.95) infinite;stroke-width:5}
-  .wt-l-phase{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
-    font-family:var(--f-mono);font-weight:600;margin:0 0 28px;transition:opacity .4s}
-  .wt-skeleton{width:min(480px,90%)}
-  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
-  .wt-sk-h{height:11px;border-radius:6px;margin-bottom:10px;
-    background:linear-gradient(90deg,var(--inset) 25%,var(--line-strong) 50%,var(--inset) 75%);
-    background-size:300% 100%;animation:shimmer 2.2s linear infinite}
-  .wt-sk-l{height:8px;border-radius:4px;margin-bottom:7px;
-    background:linear-gradient(90deg,var(--inset) 25%,var(--line-strong) 50%,var(--inset) 75%);
-    background-size:300% 100%;animation:shimmer 2.2s linear infinite}
-  .wt-sk-sep{height:1px;background:var(--line);margin:16px 0 14px}
-  .wt-sk-h.d1{animation-delay:.1s}.wt-sk-h.d2{animation-delay:.3s}.wt-sk-h.d3{animation-delay:.5s}
-  .wt-sk-l.a{width:88%}.wt-sk-l.b{width:72%}.wt-sk-l.c{width:82%}.wt-sk-l.d{width:58%}.wt-sk-l.e{width:78%}.wt-sk-l.f{width:64%}
+  .wt-stages{display:flex;flex-direction:column;align-items:flex-start;gap:0}
+  .wt-stage{display:flex;align-items:center;gap:14px}
+  .wt-stage-dot{width:14px;height:14px;border-radius:50%;flex:none;
+    border:2px solid var(--line-strong);background:var(--bg);
+    transition:border-color .35s,background .35s,box-shadow .35s}
+  .wt-stage-label{font-family:var(--f-ui);font-size:13px;font-weight:500;
+    color:var(--muted);transition:color .3s,font-weight .3s;white-space:nowrap}
+  .wt-conn{width:1px;height:22px;background:var(--line);margin:3px 0 3px 6px;
+    transition:background .45s}
+  .wt-stage.active .wt-stage-dot{border-color:var(--brand);background:var(--brand);
+    animation:wtdotpulse 1.8s ease-in-out infinite}
+  .wt-stage.active .wt-stage-label{color:var(--text);font-weight:600}
+  .wt-stage.done .wt-stage-dot{border-color:var(--brand);background:var(--brand);
+    box-shadow:none;animation:none}
+  .wt-conn.done{background:var(--brand)}
+  @keyframes wtdotpulse{
+    0%,100%{box-shadow:0 0 0 3px var(--brand-soft)}
+    50%{box-shadow:0 0 0 7px var(--brand-soft)}
+  }
+  .wt-l-hint{margin-top:40px;font-size:11px;color:var(--muted);font-family:var(--f-mono);
+    opacity:.45;letter-spacing:.04em}
 
   /* full project walkthrough */
   .wt{max-width:860px;margin:0 auto;padding:8px 4px 60px}
@@ -439,6 +456,11 @@
     border-radius:9px;font-family:var(--f-ui);font-weight:600;font-size:13px;padding:10px;cursor:pointer;transition:.14s}
   .tour-nav button:hover:not(:disabled){border-color:var(--brand);color:var(--brand-ink)}
   .tour-nav button:disabled{opacity:.4;cursor:default}
+  .tour-resume{margin-top:14px}
+  .tour-resume button{background:var(--inset);border:1px solid var(--line-strong);color:var(--brand-ink);
+    border-radius:9px;font-family:var(--f-ui);font-weight:600;font-size:12.5px;padding:7px 14px;
+    cursor:pointer;transition:.14s}
+  .tour-resume button:hover{border-color:var(--brand);background:var(--brand-soft)}
   .tour-map{margin-top:22px}
   .tour-map-h{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -460,13 +482,16 @@
   .copy-btn:hover{color:var(--brand);border-color:var(--brand)}
   .copy-btn.ok{color:var(--brand-ink);border-color:var(--brand)}
 
-  /* thinking: the node graph sketches itself while Cortex reads */
-  .thinking{
-    display:flex; align-items:center; gap:12px; font-size:13.5px; color:var(--muted);
-    padding:16px 26px; font-family:var(--f-read); font-style:italic;
-  }
-  .thinking .glyph{width:30px;height:30px;flex:none}
-  .thinking .glyph .knot{animation:knotloop 1.8s cubic-bezier(.45,.05,.55,.95) infinite}
+  /* thinking: cortex knot + single status line */
+  .thinking{padding:16px 20px;display:flex;align-items:center;gap:14px;min-height:54px}
+  .think-knot{flex:none;width:22px;height:22px}
+  .knot{fill:none;stroke:var(--brand);stroke-linecap:round;stroke-linejoin:round;
+    stroke-width:9;stroke-dasharray:1;stroke-dashoffset:1;
+    animation:knotloop 1.8s cubic-bezier(.45,.05,.55,.95) infinite}
+  .think-lines{flex:1;min-width:0}
+  .think-line{font-family:var(--f-mono);font-size:12.5px;color:var(--body);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    animation:tlfade .25s ease}
 
   /* ---------- composer ---------- */
   .composer{flex:none;padding:16px 36px 20px;border-top:1px solid var(--line);background:var(--bg-2)}
@@ -496,33 +521,40 @@
   .wire-h .caret{color:var(--faint);font-size:9px;transition:transform .18s}
   .wirewrap.open .wire-h .caret{transform:rotate(90deg);color:var(--brand)}
   .wire-hint{margin-left:auto;font-size:10.5px;color:var(--faint);font-style:italic}
-  .wire-body{display:none;padding:4px 16px 20px;overflow-x:auto}
+  .wire-body{display:none;padding:4px 16px 20px}
   .wirewrap.open .wire-body{display:block;animation:reveal .24s ease both}
-  .wire-legend{display:flex;flex-wrap:wrap;gap:10px;padding:0 4px 12px;font-size:11px;color:var(--body)}
-  .wire-legend span{display:inline-flex;align-items:center;gap:5px}
-  .wire-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
-  .wire-legend .ek b{width:18px;height:0;display:inline-block;vertical-align:middle}
-  svg.wire{display:block;max-width:100%}
+  .wire-ctrl{display:flex;align-items:center;gap:5px;padding:0 2px 10px;flex-wrap:wrap}
+  .wire-ctrl button{background:var(--inset);border:1px solid var(--line-strong);color:var(--muted);
+    border-radius:6px;font-size:13px;font-weight:700;width:26px;height:26px;cursor:pointer;
+    display:grid;place-items:center;transition:.12s;line-height:1;font-family:var(--f-ui)}
+  .wire-ctrl button:hover{border-color:var(--brand);color:var(--brand-ink);background:var(--brand-soft)}
+  .wire-ctrl .wire-fit{width:auto;padding:0 8px;font-size:10.5px}
+  .wire-legend{display:flex;flex-wrap:wrap;gap:8px;padding:0;font-size:11px;color:var(--body)}
+  .wire-legend span{display:inline-flex;align-items:center;gap:4px}
+  .wire-legend .ek b{width:16px;height:0;display:inline-block;vertical-align:middle}
+  .wire-canvas{cursor:grab;overflow:hidden;border-radius:10px;border:1px solid var(--line)}
+  .wire-canvas.dragging{cursor:grabbing}
+  svg.wire{display:block}
   svg.wire .wn{filter:none}
-  /* node label — dark text on the colored pill for legibility */
-  svg.wire .wlbl{font-family:var(--f-mono);font-size:12.5px;fill:rgba(240,235,228,.86);font-weight:500}
-  svg.wire .we{fill:none;stroke-width:1.8;opacity:.5;stroke-dashoffset:0;animation:wedraw .5s ease both}
-  svg.wire .we-import{stroke-width:2.6;opacity:.78}
-  .wire-explain{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0 4px 10px;max-width:640px}
-  .wire-explain b{color:var(--text);font-weight:600}
-  svg.wire .wcap{font-family:var(--f-ui);font-size:10px;font-weight:700;letter-spacing:.07em;
-    text-transform:uppercase;fill:var(--muted)}
-  svg.wire .wsep{stroke:var(--line);stroke-width:1;opacity:.6}
+  svg.wire .wlane{fill:var(--text);opacity:.03}
+  svg.wire .wlbl{font-family:var(--f-mono);font-size:12px;fill:rgba(236,230,220,.88);font-weight:500}
+  svg.wire .we{fill:none;stroke-width:1.8;opacity:.45;animation:wedraw .5s ease both}
+  svg.wire .we-import{stroke-width:2.2;opacity:.72}
   svg.wire .wnode{animation:cxpop .35s cubic-bezier(.3,1.4,.5,1) both;cursor:pointer}
   svg.wire .wnode .wn{transition:opacity .15s,filter .15s}
   svg.wire .wtooltip{pointer-events:none;opacity:0;transition:opacity .12s}
   svg.wire .wtooltip.show{opacity:1}
-  svg.wire.focusing .we{opacity:.1}
-  svg.wire .we.lit{opacity:1 !important;stroke-width:2.5}
-  svg.wire .we.dim{opacity:.06 !important}
-  svg.wire .wnode.dim .wn{opacity:.2}
-  svg.wire .wnode:hover .wn{filter:brightness(1.18)}
+  svg.wire.focusing .we{opacity:.08}
+  svg.wire .we.lit{opacity:1 !important;stroke-width:2.6 !important}
+  svg.wire .we.dim{opacity:.05 !important}
+  svg.wire .wnode.dim .wn{opacity:.18}
+  svg.wire .wnode:hover .wn{filter:brightness(1.2)}
+  svg.wire .wchip{pointer-events:none}
+  svg.wire .we-lbl{pointer-events:none;opacity:0;transition:opacity .12s}
+  svg.wire .we-lbl.show{opacity:1}
   @keyframes wedraw{from{opacity:0}to{}}
+  @keyframes wireflow{to{stroke-dashoffset:-30}}
+  svg.wire .we-import.lit{stroke-dasharray:5 4 !important;animation:wireflow .7s linear infinite !important;opacity:1 !important}
 
 
   /* ---------- source cards (cited from index) ---------- */
@@ -645,7 +677,7 @@
   [data-theme="light"] .user-bubble{background:#ede9ff;border-color:#d4caef;color:#1c1830}
   [data-theme="light"] .user-av{background:#e2dcf8;border-color:#ccc4ee}
   [data-theme="light"] .user-av svg{stroke:#5b38cc}
-  [data-theme="light"] .bot-av{background:var(--brand)}
+  [data-theme="light"] .bot-av{background:linear-gradient(140deg,#9d78ff 0%,#6d28d9 100%);box-shadow:0 2px 10px rgba(109,40,217,.3),0 0 0 1px rgba(255,255,255,.15)}
   [data-theme="light"] .bot-card{
     background:#f8f9fc;border-color:#dde0e8;
     box-shadow:0 1px 3px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.04);
@@ -705,10 +737,13 @@
   [data-theme="light"] .thinking{color:var(--muted)}
   /* wiring diagram — theme-sensitive */
   [data-theme="light"] svg.wire .wlbl{fill:rgba(16,14,22,.82)}
-  [data-theme="light"] svg.wire .wn{fill:#f2f3f6}
+  [data-theme="light"] svg.wire .wn{fill:#f0f1f8;stroke:#cdd0de}
+  [data-theme="light"] svg.wire .wlane{fill:#5b38cc;opacity:.025}
   [data-theme="light"] svg.wire .wtooltip rect{fill:#ffffff;stroke:#d4d7e0}
   [data-theme="light"] svg.wire .wtooltip text{fill:#111318}
-  [data-theme="light"] svg.wire .wsep{stroke:#d4d7e0}
+  [data-theme="light"] .wire-canvas{border-color:#cdd0de;background:#eceef6}
+  [data-theme="light"] svg.wire .we-lbl rect{fill:#ffffff;stroke:#cdd0de}
+  [data-theme="light"] svg.wire .we-lbl text{fill:#363b4a}
   /* rounder corners throughout light mode */
   [data-theme="light"] .bot-card{border-radius:18px !important;border-top-left-radius:10px !important}
   [data-theme="light"] .user-bubble{border-radius:18px !important;border-bottom-right-radius:8px !important}
@@ -784,7 +819,7 @@
     <div class="sec" id="tourSec" style="display:none">
       <div class="sec-h">Get oriented</div>
       <div class="orient-btns">
-        <button id="tourBtn" class="orient-btn orient-primary">
+        <button id="tourBtn" class="orient-btn orient-ghost">
           <span class="orient-icon">→</span>
           <span>Guided tour</span>
         </button>
@@ -812,13 +847,8 @@
     <div id="msgs">
       <div class="stream" id="stream">
         <div class="empty">
-          <svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">
-            <path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/>
-          </svg>
           <h2>Ask the codebase anything</h2>
-          <p>Ingest a repository, then ask in plain English. Every answer is grounded in
-             retrieved code with verified citations — or an honest "not found".</p>
-          <p style="margin-top:10px"><span class="kbd">Enter</span> to send</p>
+          <p>Ingest a repo to get started.</p>
         </div>
       </div>
     </div>
@@ -854,12 +884,13 @@ const $ = s => document.querySelector(s);
 let activeNs = null, history = [], nsMeta = {};
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const KNOT = '<svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">'
-  + '<path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
-const BOT_AV_SVG = '<svg viewBox="0 0 100 100" width="15" height="15" aria-hidden="true">'
-  + '<path style="fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-width:9" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
-const BOT_AV_EL = '<div class="bot-av">' + BOT_AV_SVG + '</div>';
+const SPARKLE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">'
+  + '<path d="M12 2C12 2 13 8.5 15.2 10.8C17.4 13.1 24 12 24 12C24 12 17.4 10.9 15.2 13.2C13 15.5 12 22 12 22C12 22 11 15.5 8.8 13.2C6.6 10.9 0 12 0 12C0 12 6.6 13.1 8.8 10.8C11 8.5 12 2 12 2Z" fill="#fff"/>'
+  + '</svg>';
+const BOT_AV_EL = '<div class="bot-av">' + SPARKLE_SVG + '</div>';
 const USER_AV_EL = '<div class="user-av"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></div>';
+const KNOT = '<svg class="think-knot" viewBox="0 0 100 100" aria-hidden="true" style="width:32px;height:32px;margin-bottom:8px">'
+  +'<path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
 
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function md(s){
@@ -1036,9 +1067,23 @@ function setActive(ns){
   });
 }
 
-function emptyState(title, sub){
-  return '<div class="empty">' + KNOT + '<h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>';
+const Q_STARTERS = [
+  'How is authentication handled?',
+  'What are the main features?',
+  'How is routing configured?',
+  'Where is the app entry point?',
+  'How is data fetched from the API?',
+  'What state management is used?',
+];
+function emptyState(title, sub, chips){
+  const chipHtml = chips
+    ? '<div class="q-chips">' + Q_STARTERS.map(q =>
+        '<button class="q-chip" onclick="fillQ(this)">' + esc(q) + '</button>').join('') + '</div>'
+    : '';
+  return '<div class="empty"><h2>' + esc(title) + '</h2>'
+    + (sub ? '<p>' + esc(sub) + '</p>' : '') + chipHtml + '</div>';
 }
+function fillQ(btn){ $('#q').value = btn.textContent; $('#q').focus(); }
 
 async function restoreChatLog(ns){
   try {
@@ -1071,7 +1116,7 @@ async function selectNamespace(ns){
   setActive(ns);
   $('#stream').innerHTML = emptyState(ns, 'Restoring session…');
   const restored = await restoreChatLog(ns);
-  if (!restored) $('#stream').innerHTML = emptyState(ns, 'Index ready. Ask a question, or pick a starter on the left.');
+  if (!restored) $('#stream').innerHTML = emptyState(ns, 'Index ready — ask anything below.', true);
   try {
     const r = await api('/v1/briefing/' + encodeURIComponent(ns));
     if (r.status === 'ready') showStarters(r);
@@ -1171,7 +1216,7 @@ $('#ingestBtn').onclick = async () => {
     await loadNamespaces();
     setActive(d.namespace);
     const restored = await restoreChatLog(d.namespace);
-    if (!restored) $('#stream').innerHTML = emptyState(d.namespace, 'Index ready — ask anything, or tap a starter on the left.');
+    if (!restored) $('#stream').innerHTML = emptyState(d.namespace, 'Index ready — ask anything below.', true);
   } catch (e){ stop(); toast('Ingest failed: ' + e.message, true);
     $('#stream').innerHTML = emptyState('Ingest failed', e.message); }
   finally { $('#ingestBtn').disabled = false; $('#ingestBtn').textContent = 'Index'; }
@@ -1217,122 +1262,235 @@ const WIRE_EDGE_COLOR = {import:'#dd7a5b', folder:'#7a6558', related:'#4e4038'};
 const EDGE_DASH  = {import:'',folder:'6 4',related:'2 5'};
 let _wireSeq = 0;
 
+/* ── wiring zoom/pan state ── */
+const _wireState = {};
+function _wGet(id){ return _wireState[id] || (_wireState[id] = {s:1,tx:0,ty:0}); }
+function _wApply(id){
+  const st = _wGet(id);
+  const g = document.querySelector('#'+id+' .wire-vp');
+  if (g) g.setAttribute('transform','translate('+Math.round(st.tx)+','+Math.round(st.ty)+') scale('+st.s+')');
+}
+function wireZoomIn(id){ const st=_wGet(id); st.s=Math.min(4,st.s*1.25); _wApply(id); }
+function wireZoomOut(id){ const st=_wGet(id); st.s=Math.max(0.2,st.s*0.8); _wApply(id); }
+function wireZoomReset(id){ _wireState[id]={s:1,tx:0,ty:0}; _wApply(id); }
+function wireWheel(e,id){
+  e.preventDefault();
+  const st=_wGet(id);
+  st.s = Math.max(0.2, Math.min(4, st.s * (e.deltaY<0?1.14:0.88)));
+  _wApply(id);
+}
+function wireDown(e,id){
+  if(e.button!==0) return; e.preventDefault();
+  const st=_wGet(id); st.dx=e.clientX; st.dy=e.clientY;
+  const canvas=document.getElementById(id)?.querySelector('.wire-canvas');
+  canvas?.classList.add('dragging');
+  const mv=me=>{ st.tx+=me.clientX-st.dx; st.ty+=me.clientY-st.dy; st.dx=me.clientX; st.dy=me.clientY; _wApply(id); };
+  const up=()=>{ canvas?.classList.remove('dragging'); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  document.addEventListener('mousemove',mv);
+  document.addEventListener('mouseup',up);
+}
+
 function renderWiring(w){
   if (!w || (w.nodes||[]).length < 2) return '';
   const id = 'wire' + (++_wireSeq);
-  // Vertical layout: depth 0 (the main/entry file) on top, each deeper import
-  // level below it, so the diagram reads top → bottom as an ordered flow.
-  const NW=252, NH=46, ROWV=100, COLW=288, PX=26, PY=24;
+  // Horizontal left→right layout: depth 0 (entry) is leftmost column.
+  // Each depth level is a vertical lane; files in the same lane stack top→bottom.
+  const NW=218, NH=66, COLW=262, ROWV=88, PX=32, PY=28;
+
   const byDepth = {};
-  w.nodes.forEach((n,i) => { const d = (n.depth==null ? i : n.depth); (byDepth[d]=byDepth[d]||[]).push(n); });
+  w.nodes.forEach(n => { const d=n.depth??0; (byDepth[d]=byDepth[d]||[]).push(n); });
   const levels = Object.keys(byDepth).map(Number).sort((a,b)=>a-b);
-  const maxCols = Math.max(1, ...levels.map(d => byDepth[d].length));
-  const W = PX*2 + (maxCols-1)*COLW + NW;
-  const H = PY*2 + (levels.length-1)*ROWV + NH;
+  const maxPerCol = Math.max(1, ...levels.map(d=>byDepth[d].length));
+  const W = PX*2 + (levels.length-1)*COLW + NW;
+  const H = PY*2 + (maxPerCol-1)*ROWV + NH;
+
+  // Node positions — each depth level is a column, nodes centred vertically
   const pos = {};
-  levels.forEach((d,li) => {
-    const row = byDepth[d];
-    const x0 = PX + (maxCols - row.length)*COLW/2;  // centre each level's row
-    row.forEach((n,ci) => { pos[n.id] = {x:x0 + ci*COLW, y:PY + li*ROWV, role:n.role, label:n.label, entry:n.entry}; });
+  levels.forEach((d,ci) => {
+    const grp = byDepth[d];
+    const startY = PY + ((maxPerCol - grp.length) * ROWV) / 2;
+    grp.forEach((n,ri) => {
+      pos[n.id] = {x:PX+ci*COLW, y:startY+ri*ROWV, role:n.role, label:n.label, entry:n.entry, symbols:n.symbols||[]};
+    });
   });
 
-  // Edges — arrows flow DOWNWARD from a file to the file it imports/uses next
-  let edges = '', ei = 0;
+  // Depth lane backgrounds (subtle column highlight)
+  let lanes = '';
+  levels.forEach((_d,ci) => {
+    const lx = PX+ci*COLW-8, lw = NW+16, lh = H-PY*0.6;
+    lanes += '<rect class="wlane" x="'+lx+'" y="'+(PY*0.4)+'" width="'+lw+'" height="'+lh+'" rx="10"/>';
+  });
+
+  // Arrow marker
+  const markerDef = '<defs><marker id="'+id+'a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+    +'<path d="M0 1.5 L9 5 L0 8.5 z" fill="#a07858"/></marker></defs>';
+
+  // Edges with import-name labels
+  let edges = '', edgeLabels = '', ei = 0;
   w.edges.forEach(e => {
-    const a=pos[e.from], b=pos[e.to]; if (!a||!b) return;
-    const ax=a.x+NW/2, bx=b.x+NW/2;
-    let sx,sy,ex,ey,d;
-    if (b.y > a.y){ sx=ax; sy=a.y+NH; ex=bx; ey=b.y; }          // down
-    else if (b.y < a.y){ sx=ax; sy=a.y; ex=bx; ey=b.y+NH; }     // up
-    else { sx=a.x+NW; sy=a.y+NH/2; ex=b.x; ey=b.y+NH/2; }       // same level (side)
-    if (a.y === b.y){ const mx=(sx+ex)/2; d='M'+sx+' '+sy+' C'+mx+' '+sy+' '+mx+' '+ey+' '+ex+' '+ey; }
-    else if (Math.abs(sx-ex) < 2){ d='M'+sx+' '+sy+' L'+ex+' '+ey; }   // straight down (aligned columns) — cleanest
-    else { const my=(sy+ey)/2; d='M'+sx+' '+sy+' C'+sx+' '+my+' '+ex+' '+my+' '+ex+' '+ey; }
+    const a=pos[e.from], b=pos[e.to]; if(!a||!b) return;
+    const eid = id+'e'+ei;
     const kind = e.kind||'related';
     const sc = WIRE_EDGE_COLOR[kind]||'#888';
-    edges += '<path class="we we-'+kind+'" data-a="'+esc(e.from)+'" data-b="'+esc(e.to)+'" '
-      +'stroke="'+sc+'" stroke-dasharray="'+EDGE_DASH[kind]+'" style="animation-delay:'+(ei*45)+'ms" '
-      +'d="'+d+'" marker-end="url(#'+id+'a)"/>';
+    const dash = EDGE_DASH[kind];
+    let pathD, mx, my;
+
+    const isSameCol = Math.abs(a.x - b.x) < 5;
+    if(isSameCol){
+      // Same column: vertical S-curve
+      const sx=a.x+NW/2, sy=(a.y<b.y?a.y+NH:a.y), ex=b.x+NW/2, ey=(a.y<b.y?b.y:b.y+NH);
+      const cy=(sy+ey)/2;
+      pathD='M'+sx+' '+sy+' C'+sx+' '+cy+' '+ex+' '+cy+' '+ex+' '+ey;
+      mx=(sx+ex)/2; my=cy;
+    } else if(a.x < b.x){
+      // Forward: exit right of a → enter left of b (normal import flow)
+      const sx=a.x+NW, sy=a.y+NH/2, ex=b.x, ey=b.y+NH/2;
+      const span=ex-sx, cx1=sx+span*0.42, cx2=ex-span*0.42;
+      pathD='M'+sx+' '+sy+' C'+cx1+' '+sy+' '+cx2+' '+ey+' '+ex+' '+ey;
+      mx=(sx+ex)/2; my=(sy+ey)/2;
+    } else {
+      // Backward: arc above the diagram
+      const sx=a.x, sy=a.y+NH/2, ex=b.x+NW, ey=b.y+NH/2;
+      const arcY=PY*0.2;
+      pathD='M'+sx+' '+sy+' C'+(sx-40)+' '+arcY+' '+(ex+40)+' '+arcY+' '+ex+' '+ey;
+      mx=(sx+ex)/2; my=arcY;
+    }
+
+    edges += '<path class="we we-'+kind+'" id="'+eid+'" data-a="'+esc(e.from)+'" data-b="'+esc(e.to)+'"'
+      +' stroke="'+sc+'"'+(dash?' stroke-dasharray="'+dash+'"':'')
+      +' style="animation-delay:'+(ei*38)+'ms" d="'+pathD+'" marker-end="url(#'+id+'a)"/>';
+
+    // Import name label (hidden, shown on hover)
+    const impNames = (e.imports||[]).slice(0,3);
+    if(impNames.length){
+      const lbl = impNames.join(', ');
+      const lblW = Math.min(lbl.length*6.2+18, 170), lblH=17;
+      const lx = Math.max(PX, Math.min(W-lblW-PX, mx-lblW/2));
+      const ly = my-lblH-4;
+      edgeLabels += '<g class="we-lbl" data-eid="'+eid+'">'
+        +'<rect x="'+lx+'" y="'+ly+'" width="'+lblW+'" height="'+lblH+'" rx="3" fill="#1b1916" stroke="#38342e" stroke-width="1"/>'
+        +'<text x="'+(lx+9)+'" y="'+(ly+11.5)+'" font-family="ui-monospace,monospace" font-size="8.5" fill="#c0a882">'+esc(lbl)+'</text>'
+        +'</g>';
+    }
     ei++;
   });
 
-  // Nodes — dark glass pill, role badge, label; the main file is ringed + tagged
+  // Node groups — role accent strip + badge + filename + symbol chips
   let nodes = '';
   w.nodes.forEach((n,k) => {
-    const p=pos[n.id]; const c = WIRE_COLOR[p.role]||'#94a3b8';
-    const tag = p.entry ? 'MAIN' : '';
-    const maxLbl = p.entry ? 18 : 24;
+    const p = pos[n.id]; if(!p) return;
+    const c = WIRE_COLOR[p.role]||'#94a3b8';
+    const sym = WIRE_SYMBOL[p.role]||'ƒ';
+    const maxLbl = p.entry ? 15 : 19;
     const short = p.label.length>maxLbl ? p.label.slice(0,maxLbl-1)+'…' : p.label;
-    const full = n.id.length > p.label.length ? n.id : p.label;
-    const tipW = Math.min(Math.max(full.length*6.5+18, 90), 340);
-    const tipX = Math.max(2, Math.min(p.x - (tipW-NW)/2, W-tipW-2));
-    const tipY = p.y - 26;
-    nodes += '<g class="wnode" data-id="'+esc(n.id)+'" '
-      +'onclick="wireOpenSource(event)" onmouseenter="wireEnter(event)" onmouseleave="wireLeave(event)" '
-      +'style="animation-delay:'+(200+k*55)+'ms">'
-      +'<rect class="wn" x="'+p.x+'" y="'+p.y+'" width="'+NW+'" height="'+NH+'" rx="10" ry="10" '
-        +'fill="#201d1a" stroke="'+(p.entry?'var(--brand)':'#322e2b')+'" stroke-width="'+(p.entry?2:1.2)+'"/>'
-      +'<rect x="'+(p.x+9)+'" y="'+(p.y+(NH-22)/2)+'" width="22" height="22" rx="4" fill="'+c+'"/>'
-      +'<text x="'+(p.x+20)+'" y="'+(p.y+NH/2+4)+'" font-size="12" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[p.role]||'?')+'</text>'
-      +'<text class="wlbl" x="'+(p.x+39)+'" y="'+(p.y+NH/2+4.5)+'">'+esc(short)+'</text>'
-      + (tag ? '<text x="'+(p.x+NW-10)+'" y="'+(p.y+NH/2+4)+'" text-anchor="end" font-size="9.5" font-weight="800" fill="var(--brand-ink)" font-family="var(--f-ui)" letter-spacing="0.5">'+tag+'</text>' : '')
+    const full = n.id;
+    const tipW = Math.min(Math.max(full.length*6.4+18,100),300);
+    const tipX = Math.max(2, Math.min(p.x-(tipW-NW)/2, W-tipW-2));
+    const tipY = p.y - 27;
+
+    // Symbol chips row
+    let chips = '';
+    (p.symbols||[]).slice(0,3).forEach((s,si) => {
+      const cs = s.length>9?s.slice(0,8)+'…':s;
+      const cw = cs.length*6+14;
+      const cx = p.x+12 + si*(cw+5);
+      if(cx+cw > p.x+NW-6) return;
+      chips += '<g class="wchip">'
+        +'<rect x="'+cx+'" y="'+(p.y+43)+'" width="'+cw+'" height="15" rx="3" fill="'+c+'" opacity="0.16"/>'
+        +'<text x="'+(cx+7)+'" y="'+(p.y+53.5)+'" fill="'+c+'" font-size="9" font-family="ui-monospace,monospace" font-weight="700">'+esc(cs)+'</text>'
+        +'</g>';
+    });
+
+    nodes += '<g class="wnode" data-id="'+esc(n.id)+'"'
+      +' onclick="wireOpenSource(event)" onmouseenter="wireEnter(event)" onmouseleave="wireLeave(event)"'
+      +' style="animation-delay:'+(200+k*50)+'ms">'
+      // Card background
+      +'<rect class="wn" x="'+p.x+'" y="'+p.y+'" width="'+NW+'" height="'+NH+'" rx="10"'
+        +' fill="#1e1c19" stroke="'+(p.entry?'var(--brand)':'#2c2a26')+'" stroke-width="'+(p.entry?1.8:1)+'"/>'
+      // Left accent strip
+      +'<rect x="'+p.x+'" y="'+(p.y+1)+'" width="4" height="'+(NH-2)+'" rx="2" fill="'+c+'" opacity="0.82"/>'
+      // Role badge
+      +'<rect x="'+(p.x+11)+'" y="'+(p.y+10)+'" width="19" height="19" rx="4" fill="'+c+'" opacity="0.88"/>'
+      +'<text x="'+(p.x+20.5)+'" y="'+(p.y+23)+'" font-size="11" fill="#fff" font-weight="800" text-anchor="middle" font-family="ui-monospace,monospace">'+sym+'</text>'
+      // Filename
+      +'<text class="wlbl" x="'+(p.x+36)+'" y="'+(p.y+25)+'">'+esc(short)+'</text>'
+      // MAIN badge
+      +(p.entry
+        ? '<rect x="'+(p.x+NW-40)+'" y="'+(p.y+9)+'" width="32" height="14" rx="3" fill="var(--brand)" opacity="0.88"/>'
+          +'<text x="'+(p.x+NW-24)+'" y="'+(p.y+19.5)+'" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" font-family="var(--f-ui)" letter-spacing="0.7">MAIN</text>'
+        : '')
+      // Symbol chips
+      + chips
+      // Tooltip (full path)
       +'<g class="wtooltip">'
-        +'<rect x="'+tipX+'" y="'+(tipY-3)+'" width="'+tipW+'" height="22" rx="5" ry="5" fill="#201d1b" stroke="#3c3733" stroke-width="1"/>'
-        +'<text x="'+(tipX+9)+'" y="'+(tipY+12)+'" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#ece7df" font-weight="500">'+esc(full)+'</text>'
+        +'<rect x="'+tipX+'" y="'+(tipY-3)+'" width="'+tipW+'" height="22" rx="5" fill="#1a1814" stroke="#38342e" stroke-width="1"/>'
+        +'<text x="'+(tipX+9)+'" y="'+(tipY+12)+'" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#eae3d8" font-weight="500">'+esc(full)+'</text>'
       +'</g>'
       +'</g>';
   });
 
+  // Legend
   const roles = [...new Set(w.nodes.map(n=>n.role))];
-  const legend = roles.map(r =>
-    '<span style="display:inline-flex;align-items:center;gap:5px">'
-    +'<svg width="14" height="14" viewBox="0 0 14 14">'
-    +'<rect width="14" height="14" rx="3" fill="'+(WIRE_COLOR[r]||'#907868')+'"/>'
-    +'<text x="7" y="10.5" font-size="8.5" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[r]||'?')+'</text>'
+  const legend = roles.map(r=>
+    '<span><svg width="13" height="13" viewBox="0 0 13 13"><rect width="13" height="13" rx="3" fill="'+(WIRE_COLOR[r]||'#907868')+'"/>'
+    +'<text x="6.5" y="10" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[r]||'?')+'</text>'
     +'</svg>'+r+'</span>'
   ).join('')
-    +'<span class="ek"><b style="border-top:2px solid #dd7a5b"></b>imports</span>'
-    +'<span class="ek"><b style="border-top:2px dashed #7a6558"></b>same folder</span>';
+    +'<span class="ek"><b style="border-top:2px solid '+WIRE_EDGE_COLOR.import+'"></b>imports</span>'
+    +'<span class="ek"><b style="border-top:2px dashed '+WIRE_EDGE_COLOR.folder+'"></b>folder</span>';
 
   const autoOpen = w.nodes.length >= 3;
   return '<div class="wirewrap'+(autoOpen?' open':'')+'" id="'+id+'">'
     +'<div class="wire-h" onclick="this.parentElement.classList.toggle(\'open\')">'
     +'<span class="caret">▶</span><strong>File connections</strong>'
     +'<span style="color:var(--faint);margin-left:7px;font-size:11px">'+w.nodes.length+' files · '+w.edges.length+' links</span>'
-    +'<span class="wire-hint">hover = highlight · click = open file</span></div>'
+    +'<span class="wire-hint">scroll=zoom · drag=pan · click=open</span></div>'
     +'<div class="wire-body">'
-    +'<p class="wire-explain">Read <b>top → bottom</b>: the <b>MAIN</b> file is on top; each <b>arrow</b> points to a file it imports or uses next. '
-    +'Hover a box to highlight its links; click to open the full file.</p>'
-    +'<div class="wire-legend">'+legend+'</div>'
-    +'<div style="overflow-x:auto">'
-    +'<svg class="wire" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">'
-    +'<defs><marker id="'+id+'a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
-    +'<path d="M0 1 L9 5 L0 9 z" fill="#a8765f"/></marker></defs>'
-    +edges+nodes
+    // Controls row
+    +'<div class="wire-ctrl">'
+    +'<button onclick="wireZoomIn(\''+id+'\')" title="Zoom in">+</button>'
+    +'<button onclick="wireZoomOut(\''+id+'\')" title="Zoom out">−</button>'
+    +'<button class="wire-fit" onclick="wireZoomReset(\''+id+'\')" title="Fit to view">⊙ fit</button>'
+    +'<div class="wire-legend" style="margin-left:10px">'+legend+'</div>'
+    +'</div>'
+    // Pannable/zoomable canvas
+    +'<div class="wire-canvas"'
+    +' onwheel="wireWheel(event,\''+id+'\')"'
+    +' onmousedown="wireDown(event,\''+id+'\')">'
+    +'<svg class="wire" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+Math.min(H,400)+'">'
+    +markerDef
+    +'<g class="wire-vp">'
+    +lanes+edges+edgeLabels+nodes
+    +'</g>'
     +'</svg></div></div></div>';
 }
 
 function wireEnter(ev){
-  const g = ev.currentTarget, svg = g.closest('svg'), id = g.getAttribute('data-id');
+  const g=ev.currentTarget, svg=g.closest('svg'), id=g.getAttribute('data-id');
   g.querySelector('.wtooltip')?.classList.add('show');
   svg.classList.add('focusing');
-  svg.querySelectorAll('.wnode').forEach(n => n.classList.toggle('dim', n.getAttribute('data-id')!==id));
-  svg.querySelectorAll('.we').forEach(e => {
+  svg.querySelectorAll('.wnode').forEach(n=>n.classList.toggle('dim', n.getAttribute('data-id')!==id));
+  svg.querySelectorAll('.we').forEach(e=>{
     const hit = e.getAttribute('data-a')===id || e.getAttribute('data-b')===id;
-    e.classList.toggle('lit', hit);
-    e.classList.toggle('dim', !hit);
-    if (hit){
+    e.classList.toggle('lit',hit);
+    e.classList.toggle('dim',!hit);
+    if(hit){
+      // show import label for this edge
+      const eid = e.id;
+      if(eid) svg.querySelector('.we-lbl[data-eid="'+eid+'"]')?.classList.add('show');
+      // un-dim the connected neighbor
       const other = e.getAttribute('data-a')===id ? e.getAttribute('data-b') : e.getAttribute('data-a');
       svg.querySelector('.wnode[data-id="'+CSS.escape(other)+'"]')?.classList.remove('dim');
     }
   });
 }
 function wireLeave(ev){
-  const g = ev.currentTarget, svg = g.closest('svg');
+  const g=ev.currentTarget, svg=g.closest('svg');
   g.querySelector('.wtooltip')?.classList.remove('show');
   svg.classList.remove('focusing');
-  svg.querySelectorAll('.wnode').forEach(n => n.classList.remove('dim'));
-  svg.querySelectorAll('.we').forEach(e => e.classList.remove('lit','dim'));
+  svg.querySelectorAll('.wnode').forEach(n=>n.classList.remove('dim'));
+  svg.querySelectorAll('.we').forEach(e=>e.classList.remove('lit','dim'));
+  svg.querySelectorAll('.we-lbl').forEach(l=>l.classList.remove('show'));
 }
 function wireOpenSource(ev){
   // clicking a connection node opens the WHOLE file — works in chat, tour, and
@@ -1346,21 +1504,24 @@ function wireOpenSource(ev){
 }
 function renderSources(d){
   const srcs = (d.sources || []).filter(s => s.score > 0 || s.used);
-  const bestScore = srcs.length ? Math.max(...srcs.map(s => s.score || 0)) : 0;
+  if (!srcs.length){
+    // Only surface a warning when ungrounded; show nothing when grounded with no sources
+    return d.grounded ? '' : '<div class="src-bar"><span class="chip bad">⚠ Ungrounded</span></div>';
+  }
+  const bestScore = Math.max(...srcs.map(s => s.score || 0));
   const scoreW = Math.round(bestScore * 100);
-  const grndChip = d.grounded
-    ? '<span class="chip ok">✓ Grounded</span>'
-    : '<span class="chip bad">⚠ Ungrounded</span>';
-  const srcCount = srcs.length ? srcs.length + ' source' + (srcs.length > 1 ? 's' : '') + ' verified' : '';
+  const srcCount = srcs.length + ' source' + (srcs.length > 1 ? 's' : '') + ' verified';
   const retrieval = scoreW > 0
     ? '<span class="ret-label">RETRIEVAL ' + scoreW + '%</span>'
       + '<span class="ret-bar"><i style="width:' + scoreW + '%"></i></span>'
     : '';
+  const grndChip = d.grounded
+    ? '<span class="chip ok">✓ Grounded</span>'
+    : '<span class="chip bad">⚠ Ungrounded</span>';
   const bar = '<div class="src-bar">' + grndChip
-    + (srcCount ? '<span class="src-count">' + srcCount + '</span>' : '')
+    + '<span class="src-count">' + srcCount + '</span>'
     + (retrieval ? '<span class="src-bar-r">' + retrieval + '</span>' : '')
     + '</div>';
-  if (!srcs.length) return bar;
   const cards = srcs.map((s, i) => {
     const lines = (s.line_start && s.line_end) ? ' L' + s.line_start + '–' + s.line_end : '';
     const sc = Math.round((s.score || 0) * 100);
@@ -1413,10 +1574,22 @@ function closeFileViewer(){
   document.querySelectorAll('.wnode.active').forEach(n => n.classList.remove('active'));
 }
 
+/* ---------- orient button active state ---------- */
+function _setOrientActive(id){
+  ['tourBtn','walkBtn'].forEach(bid => {
+    const b = $('#'+bid);
+    if (!b) return;
+    const isActive = bid === id;
+    b.classList.toggle('orient-primary', isActive);
+    b.classList.toggle('orient-ghost', !isActive);
+  });
+}
+
 /* ---------- guided codebase tour ---------- */
 let _tour = null;
 async function startTour(){
   if (!activeNs) return toast('Select a repo first', true);
+  _setOrientActive('tourBtn');
   const stream = $('#stream');
   stream.innerHTML = '<div class="empty">' + KNOT
     + '<h2>Building your guided tour…</h2><p>Ordering the codebase into a learning path.</p></div>';
@@ -1470,12 +1643,12 @@ function tourGo(d){
 function tourAsk(){
   if (!_tour) return;
   const s = _tour.stops[_tour.idx];
-  closeTour();
   $('#q').value = 'Explain ' + s.path + ' — what does it do and how does it fit into the project?';
-  $('#q').focus();
+  send();
 }
 async function closeTour(){
   _tour = null;
+  _setOrientActive(null);
   const restored = activeNs && await restoreChatLog(activeNs);
   if (!restored) $('#stream').innerHTML = emptyState(activeNs || '', 'Tour closed — ask a question below.');
 }
@@ -1486,31 +1659,40 @@ let _walkPoll = null;
 let _walkPhaseTimer = null;
 const _WT_PHASES = ['Reading files','Mapping structure','Writing sections','Almost there'];
 function _wtLoader(){
-  const sk = '<div class="wt-skeleton">'
-    + '<div class="wt-sk-h d1"></div><div class="wt-sk-l a"></div><div class="wt-sk-l b"></div>'
-    + '<div class="wt-sk-sep"></div>'
-    + '<div class="wt-sk-h d2"></div><div class="wt-sk-l c"></div><div class="wt-sk-l d"></div>'
-    + '<div class="wt-sk-sep"></div>'
-    + '<div class="wt-sk-h d3"></div><div class="wt-sk-l e"></div><div class="wt-sk-l f"></div>'
-    + '</div>';
+  const stages = _WT_PHASES.map((label, i) => {
+    const activeClass = i === 0 ? ' active' : '';
+    const conn = i < _WT_PHASES.length - 1
+      ? '<div class="wt-conn" id="wtconn-' + i + '"></div>' : '';
+    return '<div class="wt-stage' + activeClass + '" id="wts-' + i + '">'
+      + '<div class="wt-stage-dot"></div>'
+      + '<span class="wt-stage-label">' + esc(label) + '</span>'
+      + '</div>' + conn;
+  }).join('');
   return '<div class="wt-loading">'
     + '<svg class="wt-l-knot" viewBox="0 0 100 100" aria-hidden="true"><path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>'
-    + '<p class="wt-l-phase" id="wtPhase">' + _WT_PHASES[0] + '…</p>'
-    + sk + '</div>';
+    + '<div class="wt-stages">' + stages + '</div>'
+    + '<p class="wt-l-hint">Large repos may take a minute</p>'
+    + '</div>';
 }
 function _startWtPhases(){
   let pi = 0;
   _walkPhaseTimer = setInterval(() => {
-    const el = $('#wtPhase');
-    if (!el){ clearInterval(_walkPhaseTimer); return; }
-    pi = (pi + 1) % _WT_PHASES.length;
-    el.style.opacity = '0';
-    setTimeout(() => { if (el) { el.textContent = _WT_PHASES[pi] + '…'; el.style.opacity = '1'; } }, 350);
+    if (pi >= _WT_PHASES.length - 1) return;
+    const curr = $('#wts-' + pi);
+    if (!curr){ clearInterval(_walkPhaseTimer); return; }
+    curr.classList.remove('active');
+    curr.classList.add('done');
+    const conn = $('#wtconn-' + pi);
+    if (conn) conn.classList.add('done');
+    pi++;
+    const next = $('#wts-' + pi);
+    if (next) next.classList.add('active');
   }, 3200);
 }
 function _stopWtPhases(){ clearInterval(_walkPhaseTimer); _walkPhaseTimer = null; }
 async function startWalkthrough(){
   if (!activeNs) return toast('Select a repo first', true);
+  _setOrientActive('walkBtn');
   if (_walkPoll){ clearInterval(_walkPoll); _walkPoll = null; }
   _stopWtPhases();
   $('#stream').innerHTML = _wtLoader();
@@ -1601,32 +1783,85 @@ function printWalkthrough(){
 async function closeWalkthrough(){
   if (_walkPoll){ clearInterval(_walkPoll); _walkPoll = null; }
   _stopWtPhases();
+  _setOrientActive(null);
   _walk = null;
   const restored = activeNs && await restoreChatLog(activeNs);
   if (!restored) $('#stream').innerHTML = emptyState(activeNs || '', 'Walkthrough closed — open it again any time from the left.');
 }
 
-const PHASES = ['searching the index', 'weighing the sources', 'reading the surrounding code',
-                'composing a grounded answer', 'verifying citations'];
+const TOOL_ICON = {search_code:'🔍',read_file:'📄',find_files:'📁',grep_code:'🔎',get_file_structure:'🗂'};
+const TOOL_LABEL = {search_code:'search',read_file:'read file',find_files:'find files',grep_code:'grep',get_file_structure:'file structure'};
+
+function _fmtChars(n){return n>=1000?(n/1000).toFixed(1)+'k':n+'';}
 
 async function send(){
   const q = $('#q').value.trim();
   if (!q) return;
   if (!activeNs) return toast('Ingest or select a repo first', true);
   $('#q').value = '';
+  // If tour is active, clear the tour UI but keep _tour state so we can return to it
+  if (_tour) { const tourEl = $('#stream').querySelector('.tour'); if (tourEl) tourEl.remove(); }
   addTurn('<div class="user-bubble">' + esc(q) + '</div>' + USER_AV_EL, 'user');
-  const t = addTurn(BOT_AV_EL + '<div class="bot-card"><div class="thinking">' + KNOT + '<span class="phase">'
-    + PHASES[0] + '…</span></div></div>', 'bot');
-  let pi = 0;
-  const phaser = setInterval(() => {
-    const p = t.querySelector('.bot-card .phase');
-    if (p) p.textContent = PHASES[(++pi) % PHASES.length] + '…';
-  }, 1700);
+  const KNOT_SMALL = '<svg class="think-knot" viewBox="0 0 100 100" aria-hidden="true"><path class="knot" pathLength="1" d="M32 40 H68 A8 8 0 1 0 60 32 V68 A8 8 0 1 0 68 60 H32 A8 8 0 1 0 40 68 V32 A8 8 0 1 0 32 40 Z"/></svg>';
+  const t = addTurn(BOT_AV_EL + '<div class="bot-card"><div class="thinking">'
+    + KNOT_SMALL + '<div class="think-lines"><div class="think-line">Thinking…</div></div></div></div>', 'bot');
+  const tlines = t.querySelector('.think-lines');
+
+  function addStep(text){
+    // Replace single line — re-create to retrigger the fade-in animation
+    tlines.innerHTML = '<div class="think-line">' + esc(text) + '</div>';
+  }
+
   try {
     const payload = history.slice(-12).map(h => ({ role: h.role, content: String(h.content).slice(0, 1000) }));
     const askBody = { namespace: activeNs, question: q, history: payload };
-    const d = await api('/v1/ask', askBody);
-    clearInterval(phaser);
+    const key = $('#key').value.trim();
+
+    const resp = await fetch('/v1/ask/stream', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify(askBody),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', d = null;
+    outer: while(true){
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value,{stream:true});
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        let ev; try{ ev=JSON.parse(line.slice(6)); }catch{ continue; }
+        if(ev.type==='thinking'){
+          addStep('Thinking…');
+        } else if(ev.type==='composing'){
+          addStep('Composing answer…');
+        } else if(ev.type==='tool_call'){
+          const arg = (ev.arg||'').slice(0,48);
+          const labels = {
+            search_code: arg ? 'Searching — '+arg : 'Searching codebase',
+            read_file:   arg ? 'Reading — '+arg.split('/').pop() : 'Reading file',
+            find_files:  arg ? 'Finding files — '+arg : 'Finding files',
+            grep_code:   arg ? 'Grepping — '+arg : 'Grepping code',
+            get_file_structure: 'Mapping project structure',
+          };
+          addStep(labels[ev.tool] || ev.tool);
+        } else if(ev.type==='tool_result' && !ev.ok){
+          addStep('No results — refining search');
+        } else if(ev.type==='error_iter'){
+          addStep('Retrying with a different approach');
+        } else if(ev.type==='error'){
+          throw new Error(ev.message||'Agent error');
+        } else if(ev.type==='done'){
+          d = ev; break outer;
+        }
+      }
+    }
+    if(!d) throw new Error('No response received');
+
     history.push({ role: 'user', content: q });
     history.push({ role: 'assistant', content: d.answer });
     const ms = d.trace && d.trace.duration_ms ? (d.trace.duration_ms / 1000).toFixed(1) + 's' : '';
@@ -1634,23 +1869,28 @@ async function send(){
     t.innerHTML = BOT_AV_EL + '<div class="bot-card"><div class="answer"></div></div>';
     const card = t.querySelector('.bot-card');
     const _sm = {}; (d.sources || []).forEach(s => { _sm[s.path] = s; }); t._srcMap = _sm;
+    const metaParts = [
+      (d.trace && d.trace.strategy === 'agent' && d.trace.grounding
+        ? '<span class="chip info">⚡ ' + (d.trace.grounding.tool_calls||0) + ' calls · ' + (d.trace.grounding.iterations||0) + ' steps</span>'
+        : ''),
+      (model ? '<span>' + esc(model) + '</span>' : ''),
+      (ms ? '<span>' + ms + '</span>' : ''),
+    ].filter(Boolean).join('');
     const tail = renderWiring(d.wiring)
       + renderSources(d)
-      + '<div class="ans-meta">'
-      + (d.trace && d.trace.strategy === 'agent' && d.trace.grounding
-          ? '<span class="chip info">⚡ ' + (d.trace.grounding.tool_calls || 0) + ' tool calls · ' + (d.trace.grounding.iterations || 0) + ' steps</span>'
-          : '')
-      + (model ? '<span>' + esc(model) + '</span>' : '')
-      + (ms ? '<span>· ' + ms + '</span>' : '')
-      + '</div>';
+      + (metaParts ? '<div class="ans-meta">' + metaParts + '</div>' : '');
     typeInto(card.querySelector('.answer'), md(d.answer), () => {
       card.insertAdjacentHTML('beforeend', tail);
       addCopyButton(card, d.answer);
+      if (_tour) {
+        card.insertAdjacentHTML('beforeend',
+          '<div class="tour-resume"><button onclick="renderTour()">↩ Back to tour · stop '
+          + (_tour.idx + 1) + ' of ' + _tour.stops.length + '</button></div>');
+      }
       scrollBottom();
     });
   } catch (e){
-    clearInterval(phaser);
-    t.innerHTML = '<div class="answer" style="color:var(--bad)">⚠ ' + esc(e.message) + '</div>';
+    t.innerHTML = BOT_AV_EL + '<div class="bot-card"><div class="answer" style="color:var(--bad);padding:14px 20px">⚠ ' + esc(e.message) + '</div></div>';
   }
 }
 

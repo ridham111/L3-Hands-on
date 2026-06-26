@@ -321,8 +321,36 @@ def _mock_answer(question: str, chunks: list[dict]) -> tuple[str, list[str]]:
 
 
 def ask(request: AskRequest, *, settings: Optional[Settings] = None,
-        provider: Optional[LLMProvider] = None) -> AskResponse:
+        provider: Optional[LLMProvider] = None, event_callback=None) -> AskResponse:
     import dataclasses
+
+    # ── Conversational short-circuit ─────────────────────────────────────────
+    # Must fire before provider construction so "hi", "thanks", etc. are handled
+    # regardless of which backend is active (agent, RAG, mock, etc.).
+    from .agent import _CONVERSATIONAL_RE, _CONVERSATIONAL_REPLY, AGENT_ID as _AGENT_ID
+    if _CONVERSATIONAL_RE.match(request.question.strip()):
+        _cb = event_callback if callable(event_callback) else (lambda _e: None)
+        _cb({"type": "composing"})
+        _s = settings or get_settings()
+        return AskResponse(
+            answer=_CONVERSATIONAL_REPLY,
+            sources=[],
+            grounded=False,
+            validation_status="passed",
+            wiring=None,
+            trace=Trace(
+                trace_id=new_trace_id(),
+                agent_id=_AGENT_ID,
+                model_used=_s.model_used,
+                duration_ms=0,
+                strategy="conversational",
+                errors=[],
+                grounding={"namespace": request.namespace, "tool_calls": 0,
+                           "files_accessed": 0, "iterations": 0, "call_log": []},
+            ),
+        )
+    # ─────────────────────────────────────────────────────────────────────────
+
     settings = settings or get_settings()
     if not provider:
         if request.backend or request.claude_model:
@@ -338,7 +366,8 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
     # whose primary is Claude. Other backends fall through to the RAG pipeline.
     if hasattr(provider, "complete_turn"):
         from .agent import agent_ask
-        return agent_ask(request, settings=settings, provider=provider)
+        return agent_ask(request, settings=settings, provider=provider,
+                         event_callback=event_callback)
     # ────────────────────────────────────────────────────────────────────────
 
     store = get_store(settings)

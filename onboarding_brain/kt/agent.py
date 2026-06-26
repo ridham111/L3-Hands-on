@@ -22,6 +22,7 @@ Level-3 criteria satisfied
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from ..config import Settings, get_settings
@@ -89,6 +90,32 @@ MAX_ITERATIONS = 12
 AGENT_ID = "kt-agent-v1"
 _SKIP_PATHS = {"project-briefing", "feature-map", "git-history"}
 
+_CONVERSATIONAL_RE = re.compile(
+    r"^\s*(hi+|hello+|hey+|howdy|greetings|sup|what'?s\s+up|yo+|good\s+(morning|afternoon|evening|day)|"
+    r"thanks?|thank\s+you|thx|ty|cheers|ok+|okay|cool|great|awesome|nice|good|got\s+it|understood|"
+    r"sure|sounds\s+good|perfect|excellent|alright|bye|goodbye|see\s+you|cya|later|"
+    r"how\s+are\s+you|what'?s\s+up|who\s+are\s+you|what\s+can\s+you\s+do|help)\W*$",
+    re.IGNORECASE,
+)
+
+_CONVERSATIONAL_REPLY = (
+    "Hey! I'm KT Brain — I help engineers get up to speed on this codebase.\n\n"
+    "Ask me anything about the repo: how a feature works, where something is defined, "
+    "how the app boots, what a file does, or how two components connect. I'll read the actual code and answer."
+)
+
+_TOOL_ARG_KEY: dict[str, str] = {
+    "search_code": "query",
+    "read_file": "path",
+    "find_files": "pattern",
+    "grep_code": "pattern",
+}
+
+
+def _tool_arg(name: str, inp: dict) -> str:
+    key = _TOOL_ARG_KEY.get(name)
+    return str(inp.get(key, ""))[:80] if key else ""
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main entry point
@@ -99,6 +126,7 @@ def agent_ask(
     *,
     settings: Optional[Settings] = None,
     provider=None,
+    event_callback=None,
 ) -> AskResponse:
     """Run the agentic tool-use loop and return a grounded AskResponse.
 
@@ -119,6 +147,28 @@ def agent_ask(
         provider = get_provider(settings)
 
     executor = ToolExecutor(namespace=namespace, store=store)
+    cb = event_callback if callable(event_callback) else (lambda _e: None)
+
+    # ── Short-circuit purely conversational messages ──────────────────────────
+    if _CONVERSATIONAL_RE.match(request.question.strip()):
+        cb({"type": "composing"})
+        return AskResponse(
+            answer=_CONVERSATIONAL_REPLY,
+            sources=[],
+            grounded=False,
+            validation_status="passed",
+            wiring=None,
+            trace=Trace(
+                trace_id=new_trace_id(),
+                agent_id=AGENT_ID,
+                model_used=settings.model_used,
+                duration_ms=0,
+                strategy="conversational",
+                errors=[],
+                grounding={"namespace": namespace, "tool_calls": 0,
+                           "files_accessed": 0, "iterations": 0, "call_log": []},
+            ),
+        )
 
     # ── Build initial conversation ────────────────────────────────────────────
     history = [h.model_dump() for h in request.history]
@@ -137,6 +187,9 @@ def agent_ask(
     with timed() as t:
         for iteration in range(MAX_ITERATIONS):
             iterations_used = iteration + 1
+            cb({"type": "iteration", "n": iterations_used, "max": MAX_ITERATIONS})
+            if iteration == 0:
+                cb({"type": "thinking"})
             try:
                 result = provider.complete_turn(
                     AGENT_SYSTEM_PROMPT,
@@ -145,20 +198,24 @@ def agent_ask(
                 )
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"llm_error:{exc}")
+                cb({"type": "error_iter", "message": str(exc)})
                 break
 
             if result.stop_reason == "end_turn":
+                cb({"type": "composing"})
                 final_answer = result.text.strip() or NOT_FOUND
                 break
 
             if result.stop_reason == "tool_use":
-                # Append assistant's turn (with tool_use blocks) verbatim
                 messages.append({"role": "assistant", "content": result.raw_content})
 
-                # Execute every tool the LLM requested and collect results
                 tool_results = []
                 for tc in result.tool_calls:
+                    cb({"type": "tool_call", "tool": tc.name, "arg": _tool_arg(tc.name, tc.input)})
                     output = executor.execute(tc.name, tc.input)
+                    ok = bool(output.strip()) and not output.startswith("[error")
+                    cb({"type": "tool_result", "tool": tc.name, "ok": ok,
+                        "chars": len(output)})
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tc.id,
@@ -183,9 +240,12 @@ def agent_ask(
                     break
 
     # ── Assemble response ─────────────────────────────────────────────────────
-    sources = _sources_from_executor(executor, store, namespace)
     is_not_found = final_answer.lower().startswith("i couldn't find")
     grounded = bool(executor.used_paths) or is_not_found
+
+    # Don't surface sources/wiring for not-found answers: the agent scanned
+    # files while searching but none are relevant — showing them misleads.
+    sources = [] if is_not_found else _sources_from_executor(executor, store, namespace)
 
     wiring = None
     if not is_not_found and executor.used_paths:
@@ -223,12 +283,22 @@ def agent_ask(
     })
     log_event("agent_ask_end", trace_id)
 
-    # Persist to chat history
+    # Persist to chat history (wiring + sources saved so session restore works)
     try:
-        get_chat_store(settings).append(namespace, [
-            {"role": "user", "content": request.question},
-            {"role": "assistant", "content": final_answer},
-        ])
+        _hist_extra: dict = {}
+        if wiring:
+            _hist_extra["wiring"] = wiring.model_dump(mode="json") if hasattr(wiring, "model_dump") else wiring
+        src_compact = [
+            {"path": s.path, "line_start": s.line_start, "line_end": s.line_end,
+             "score": round(s.score, 3), "used": s.used,
+             "symbol": (s.symbol or "")[:60], "snippet": (s.snippet or "")[:280]}
+            for s in sources if s.path not in _SKIP_PATHS
+        ][:14]
+        if src_compact:
+            _hist_extra["sources"] = src_compact
+        get_chat_store(settings).append(
+            namespace, request.question, final_answer, extra=_hist_extra or None
+        )
     except Exception:
         pass
 
