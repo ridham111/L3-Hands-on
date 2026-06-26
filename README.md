@@ -117,8 +117,10 @@ Cortex is really a few small, focused helpers ("agents") that share the same bra
 - **Chat** (`kt-agent-v1`) — ask anything; a Level-3 AI agent that reasons over 9 tools
   (search, read, grep, symbol lookup, dependency parsing, call graphs, AST-level search)
   and cites the exact files and lines each answer came from.
-- **Guided tour** — a "read these files, in this order" path through the code.
-- **Project walkthrough** — the long-form, framework-aware deep dive you can save as PDF.
+- **Guided tour** — a "read these files, in this order" path through the code, with a
+  one-line plain-English insight on each stop explaining what it does and why it matters.
+- **Project walkthrough** — the long-form, framework-aware deep dive you can save as PDF,
+  with a "Key takeaways" summary and a "read this next" pointer on every section.
 - **Gap finder** — points out the files that are central but hard to understand, so the
   team can write down what they're for.
 
