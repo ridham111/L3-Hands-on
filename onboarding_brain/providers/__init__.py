@@ -1,4 +1,4 @@
-"""Model-agnostic LLM provider layer (mock | groq | openrouter | ollama | claude).
+"""Model-agnostic LLM provider layer (groq | openrouter | claude).
 
 Set ONBOARDING_LLM_FALLBACK_BACKEND to chain two providers: every completion
 tries the primary first and falls back to the backup on any failure (each
@@ -8,27 +8,19 @@ from __future__ import annotations
 
 from ..config import Settings, get_settings
 from .base import LLMError, LLMProvider, LLMResult
-from .mock_provider import MockProvider
 
 
 def _make(backend: str, settings: Settings) -> LLMProvider:
     if backend == "groq":
         from .groq_provider import GroqProvider
-
         return GroqProvider(settings)
     if backend == "openrouter":
         from .openrouter_provider import OpenRouterProvider
-
         return OpenRouterProvider(settings)
-    if backend == "ollama":
-        from .ollama_provider import OllamaProvider
-
-        return OllamaProvider(settings)
     if backend == "claude":
         from .claude_provider import ClaudeProvider
-
         return ClaudeProvider(settings)
-    return MockProvider(settings)
+    raise ValueError(f"Unknown backend: {backend!r}. Valid options: claude | groq | openrouter")
 
 
 class FallbackProvider(LLMProvider):
@@ -59,20 +51,16 @@ class FallbackProvider(LLMProvider):
 def get_provider(settings: Settings | None = None, backend: str | None = None) -> LLMProvider:
     """Build the LLM provider. Pass `backend` to force a specific one (e.g. the
     walkthrough uses OpenRouter while chat uses Groq); otherwise use the default
-    backend + its configured fallback chain. Falls back to the default backend,
-    then mock, if the requested one can't be constructed (missing key/package)."""
+    backend + its configured fallback chain."""
     settings = settings or get_settings()
     if backend and backend != settings.backend:
         try:
             return _make(backend, settings)
         except Exception:
-            try:
-                return _make(settings.backend, settings)
-            except Exception:
-                return MockProvider(settings)
+            return _make(settings.backend, settings)
     primary = _make(settings.backend, settings)
     fb = settings.fallback_backend
-    if settings.backend != "mock" and fb and fb not in (settings.backend, "mock"):
+    if fb and fb != settings.backend:
         try:
             return FallbackProvider(settings, primary, _make(fb, settings))
         except RuntimeError:
@@ -80,4 +68,4 @@ def get_provider(settings: Settings | None = None, backend: str | None = None) -
     return primary
 
 
-__all__ = ["LLMProvider", "LLMError", "MockProvider", "FallbackProvider", "get_provider"]
+__all__ = ["LLMProvider", "LLMError", "FallbackProvider", "get_provider"]

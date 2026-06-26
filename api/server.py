@@ -336,15 +336,31 @@ async def gaps(namespace: str, _: str = Depends(require_auth)) -> dict[str, Any]
 
 
 @app.get("/v1/tour/{namespace}")
-async def tour(namespace: str, _: str = Depends(require_auth)) -> JSONResponse:
+async def tour(namespace: str, refresh: bool = False,
+               _: str = Depends(require_auth)) -> JSONResponse:
     """Guided Codebase Tour — an ordered learning path of real files for new joiners.
+    Stops carry an LLM one-line insight (narration); since that is expensive it is
+    cached to tour.json and reused. Pass ?refresh=true to regenerate.
     Response shape is the TourResponse contract (contract.py)."""
     from onboarding_brain.contract import TourResponse
-    from onboarding_brain.kt.tour import build_tour
+    from onboarding_brain.kt.tour import build_tour, load_cached_tour, save_cached_tour
+    settings = get_settings()
+
+    # serve a narrated cache when available (unless the caller forces a refresh)
+    if not refresh:
+        cached = load_cached_tour(namespace, settings=settings)
+        if cached and cached.get("narrated"):
+            try:
+                return JSONResponse(content=TourResponse.model_validate(cached).model_dump(mode="json"))
+            except Exception:
+                pass  # stale/invalid cache shape — fall through and rebuild
+
     try:
-        raw = await run_in_threadpool(build_tour, namespace, settings=get_settings())
+        raw = await run_in_threadpool(build_tour, namespace, narrate=True, settings=settings)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    if raw.get("narrated"):  # only cache once narration succeeded
+        await run_in_threadpool(save_cached_tour, namespace, raw, settings=settings)
     # validate the agent's output against the published contract before returning
     return JSONResponse(content=TourResponse.model_validate(raw).model_dump(mode="json"))
 

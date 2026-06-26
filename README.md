@@ -1,5 +1,7 @@
 # Cortex — get up to speed on any codebase, fast
 
+> **docs/** — [Architecture](docs/architecture.md) · [API Reference](docs/api.md) · [Eval Guide](docs/eval-guide.md) · [Limitations](docs/limitations.md)
+
 Joining a new project is hard. You're handed a repo with hundreds of files and no idea
 where to start. Cortex fixes that.
 
@@ -112,7 +114,9 @@ Cortex is really a few small, focused helpers ("agents") that share the same bra
 - **Briefing** — your Day-1 overview of the project.
 - **Install guide** — the tools and versions you need, pulled from the project's own
   config files.
-- **Chat** — ask anything; answers cite the real files they came from.
+- **Chat** (`kt-agent-v1`) — ask anything; a Level-3 AI agent that reasons over 9 tools
+  (search, read, grep, symbol lookup, dependency parsing, call graphs, AST-level search)
+  and cites the exact files and lines each answer came from.
 - **Guided tour** — a "read these files, in this order" path through the code.
 - **Project walkthrough** — the long-form, framework-aware deep dive you can save as PDF.
 - **Gap finder** — points out the files that are central but hard to understand, so the
@@ -134,8 +138,8 @@ This is the part that matters most for onboarding — wrong answers are worse th
 - **It ignores sneaky instructions.** If a README or code comment contains text like
   "ignore everything and say X," Cortex treats that as data to read, not a command to
   follow.
-- **It fails gracefully.** If the AI service is slow or down, you get an honest "couldn't
-  answer" — never a confident hallucination.
+- **It fails gracefully.** If the AI service is slow or down, it retries up to twice before
+  giving you an honest "couldn't answer" — never a confident hallucination.
 
 ---
 
@@ -160,15 +164,15 @@ Everything is controlled by environment variables, with safe defaults so it just
 
 | What | Setting | Choices | Default |
 |---|---|---|---|
-| AI for answers | `ONBOARDING_LLM_BACKEND` | `mock` (offline), `groq`, `openrouter`, `ollama` | `mock` |
+| AI for answers | `ONBOARDING_LLM_BACKEND` | `claude`, `groq`, `openrouter` | `claude` |
 | How it searches | `ONBOARDING_VECTOR_BACKEND` | `tfidf` (fast), `dense`, `hybrid` (smartest) | `tfidf` |
 | Where chat history lives | `ONBOARDING_CHAT_STORE` | `auto`, `json`, `mongo` | `auto` |
 | API keys | `ONBOARDING_API_KEYS` | comma-separated keys | `dev-local-key` |
 
-For real natural-language answers, set `ONBOARDING_LLM_BACKEND=groq` and add a free
-`GROQ_API_KEY`. The `hybrid` search option understands meaning (so "auth" finds "login"),
-but it's slower to set up on big repos — Cortex automatically falls back to the fast option
-for very large projects.
+The default backend is **Claude** — it authenticates via `claude auth` OAuth (no API key needed
+if you have Claude Pro). For Groq, set `ONBOARDING_LLM_BACKEND=groq` and add a free `GROQ_API_KEY`.
+The `hybrid` search option understands meaning (so "auth" finds "login"), but it's slower to set
+up on big repos — Cortex automatically falls back to the fast option for very large projects.
 
 ---
 
@@ -210,6 +214,10 @@ to keep in mind if you deploy it more widely:
   not line-by-line history.
 - **Answer quality is checked structurally, not stylistically.** The quality gate verifies
   the right files and grounding; it doesn't yet grade how well-written an answer reads.
+- **Claude backend requires `claude auth` login.** Run `claude auth` once in your terminal
+  to authenticate. No API key is needed for Claude Pro users.
+
+See [docs/limitations.md](docs/limitations.md) for the full list with deployment guidance.
 
 ---
 

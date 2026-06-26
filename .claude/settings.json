@@ -16,7 +16,23 @@
       "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/health\")",
       "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/v1/info\")",
       "PowerShell(Get-Content \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\")",
-      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\"; Get-Item \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\" -Force | Select-Object FullName, Length)"
+      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\"; Get-Item \"$env:USERPROFILE\\\\.claude\\\\.credentials.json\" -Force | Select-Object FullName, Length)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(python -c ' *)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\onboarding_brain\\\\providers\\\\mock_provider.py\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\RidhamPansuriya\\\\Desktop\\\\onboarding-brain\\\\L3-Hands-on\\\\onboarding_brain\\\\providers\\\\ollama_provider.py\" -Force)",
+      "Bash(Write-Host \"Deleted mock_provider.py and ollama_provider.py\")",
+      "Bash(python3 -m pytest c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on/tests --collect-only -q)",
+      "Bash(python -c \"import onboarding_brain.kt.tour, onboarding_brain.kt.walkthrough, onboarding_brain.kt.agent, onboarding_brain.prompts, onboarding_brain.contract, api.server; print\\('imports OK'\\)\")",
+      "Bash(ONBOARDING_LLM_BACKEND=claude python -m evals.runner)",
+      "Bash(python -m evals.runner)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Read(//tmp/**)",
+      "Bash(cd \"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" && grep -A3 \"FAIL\" /tmp/eval_out.txt)",
+      "Bash(python -m pytest -q)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

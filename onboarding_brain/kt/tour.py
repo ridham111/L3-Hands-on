@@ -21,9 +21,11 @@ import json
 import os
 import re
 from collections import Counter, deque
+from pathlib import Path
 from typing import Optional
 
 from ..config import Settings, get_settings
+from ..trace import logger
 from .knowledge import load_annotations
 from .store import _NOISE_PATH, get_store, slugify
 from .wiring import _IMPORT, _basekey, _dirname, _import_basekey, _role, build_wiring, entry_score
@@ -213,7 +215,7 @@ def _doc_only_tour(store, ns: str, docs: list[dict]) -> dict:
 
 
 def build_tour(namespace: str, *, max_stops: int = 12, max_per_chapter: int = 4,
-               settings: Optional[Settings] = None) -> dict:
+               narrate: bool = False, settings: Optional[Settings] = None) -> dict:
     settings = settings or get_settings()
     store = get_store(settings)
     ns = slugify(namespace)
@@ -275,6 +277,7 @@ def build_tour(namespace: str, *, max_stops: int = 12, max_per_chapter: int = 4,
                 "excerpt": (fc.get("text", "") or "")[:600], "depth": d,
                 "imports": out_adj.get(p, [])[:6],
                 "reason": _why(p, d, indeg.get(p, 0), p in entry_set),
+                "insight": "",
                 "note": _annotation_for(annotations, p), "is_entry": p in entry_set,
             })
             all_paths.append(p)
@@ -292,8 +295,100 @@ def build_tour(namespace: str, *, max_stops: int = 12, max_per_chapter: int = 4,
     if briefing:
         overview = str((briefing.get("overview") or {}).get("answer", ""))[:600]
 
-    return {
+    result = {
         "namespace": ns, "overview": overview,
         "entry_point": entries[0] if entries else None, "entry_points": entries,
         "total_stops": len(all_paths), "chapters": out_chapters, "wiring": wiring,
+        "narrated": False,
     }
+
+    # Optional LLM narration: one batched call adds a plain-English "what & why"
+    # to every stop. Best-effort — a failure leaves the structural tour intact.
+    if narrate:
+        result["narrated"] = _narrate_tour(result, text_by_path, settings)
+
+    return result
+
+
+# ---- LLM narration (one batched call adds a one-liner per stop) ------------
+
+def _parse_insight_json(raw: str) -> dict:
+    """Robustly pull the {path: insight} object out of an LLM response."""
+    t = re.sub(r"<think>.*?</think>", "", raw or "", flags=re.S | re.I).strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\s*", "", t).rstrip("`").strip()
+    obj = None
+    try:
+        obj = json.loads(t)
+    except Exception:
+        m = re.search(r"\{.*\}", t, re.S)
+        if m:
+            try:
+                obj = json.loads(m.group(0))
+            except Exception:
+                obj = None
+    return obj if isinstance(obj, dict) else {}
+
+
+def _narrate_tour(result: dict, text_by_path: dict, settings: Settings) -> bool:
+    """Add a one-line insight to each tour stop via a single LLM call.
+    Best-effort: returns True only if at least one stop was narrated; any
+    failure leaves the structural tour untouched."""
+    stops = [s for ch in result.get("chapters", []) for s in ch.get("stops", [])]
+    if not stops:
+        return False
+    try:
+        from ..prompts import TOUR_NARRATE_SYSTEM_PROMPT, build_tour_narrate_prompt
+        from ..providers import get_provider
+        provider = get_provider(settings)
+        if not hasattr(provider, "complete"):
+            return False
+        try:  # framework vocabulary helps the narration; lazy import avoids a cycle
+            from .walkthrough import detect_stack
+            stack = ", ".join(detect_stack(list(text_by_path.keys()), text_by_path))
+        except Exception:
+            stack = ""
+        prompt = build_tour_narrate_prompt(stops, stack)
+        raw = provider.complete(TOUR_NARRATE_SYSTEM_PROMPT, prompt).text
+        mapping = _parse_insight_json(raw)
+        if not mapping:
+            return False
+        narrated = 0
+        for s in stops:
+            ins = mapping.get(s["path"]) or mapping.get(s["path"].rsplit("/", 1)[-1])
+            if isinstance(ins, str) and ins.strip():
+                s["insight"] = ins.strip()[:240]
+                narrated += 1
+        return narrated > 0
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("tour_narrate_failed namespace=%s error=%s",
+                       result.get("namespace"), str(exc)[:120])
+        return False
+
+
+# ---- caching (tour.json) — narration is expensive, so cache it once -------
+
+def tour_cache_path(store, ns: str) -> Path:
+    return store.ns_dir(ns) / "tour.json"
+
+
+def load_cached_tour(namespace: str, *, settings: Optional[Settings] = None) -> Optional[dict]:
+    settings = settings or get_settings()
+    store = get_store(settings)
+    p = tour_cache_path(store, slugify(namespace))
+    if not p.is_file():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def save_cached_tour(namespace: str, doc: dict, *, settings: Optional[Settings] = None) -> None:
+    settings = settings or get_settings()
+    store = get_store(settings)
+    try:
+        tour_cache_path(store, slugify(namespace)).write_text(
+            json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass

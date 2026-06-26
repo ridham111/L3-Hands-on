@@ -1,4 +1,4 @@
-"""Environment-driven configuration with safe defaults (offline-first)."""
+"""Environment-driven configuration."""
 from __future__ import annotations
 
 import os
@@ -30,7 +30,7 @@ def _float(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class Settings:
-    backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_BACKEND", "mock").lower())
+    backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_BACKEND", "claude").lower())
     # second LLM backend tried when the primary fails (e.g. openrouter -> groq)
     fallback_backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_FALLBACK_BACKEND", "").lower())
     # the long-form walkthrough can use a different (often larger-context) model
@@ -55,9 +55,6 @@ class Settings:
     openrouter_fallback_model: str = field(default_factory=lambda: os.getenv("OPENROUTER_FALLBACK_MODEL", ""))
     openrouter_base: str = field(default_factory=lambda: os.getenv(
         "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
-
-    ollama_host: str = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
-    ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "llama3.1:8b"))
 
     claude_model: str = field(default_factory=lambda: os.getenv("CLAUDE_MODEL", "claude-opus-4-8"))
 
@@ -143,11 +140,9 @@ class Settings:
             return f"groq/{self.groq_model}"
         if self.backend == "openrouter":
             return f"openrouter/{self.openrouter_model}"
-        if self.backend == "ollama":
-            return f"ollama/{self.ollama_model}"
         if self.backend == "claude":
             return f"claude/{self.claude_model}"
-        return "mock/deterministic-v1"
+        return self.backend
 
 
 def get_settings() -> Settings:

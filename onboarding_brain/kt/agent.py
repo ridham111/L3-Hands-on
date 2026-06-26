@@ -48,6 +48,11 @@ TOOLS YOU HAVE:
   find_files         — list files matching a name pattern ("routes", "auth", "*.ts")
   get_file_structure — see every indexed file in the project
   grep_code          — find exact strings, function names, or imports
+  list_symbols       — list all functions/classes/types defined in a file (fast — no full read)
+  get_dependencies   — parse package.json/requirements.txt/go.mod — what libraries are used
+  call_graph         — show where a function is defined, where it's called from, and what it calls
+  run_grep_ast       — find all structural nodes by type: class, function, interface,
+                       component, decorator, route, export
 
 HOW TO WORK:
 1. Analyse the question — what specific things do you need to find?
@@ -55,22 +60,56 @@ HOW TO WORK:
 3. If results reference other files or functions, read_file them.
 4. Use find_files + read_file when you know a filename but search missed it.
 5. Use grep_code to find exact function names, imports, or configuration keys.
-6. Keep gathering evidence until you are CONFIDENT in the answer.
-7. Write the final answer citing exact file paths and line numbers
-   (e.g. "In src/auth/middleware.ts at line 42, the guard checks...").
+6. Use list_symbols when you need a file's API surface quickly — faster than read_file
+   when you only need to know what's defined, not the full body.
+7. Use get_dependencies for questions about installed libraries, versions, or tech stack.
+8. Use call_graph to trace a function's callers and callees — ideal for impact analysis
+   ("what breaks if I change X?") and understanding entry points.
+9. Use run_grep_ast to enumerate all classes, routes, components, or decorators in the
+   repo — ideal for architecture questions ("what API routes exist?", "what services?").
+10. Keep gathering evidence until you are CONFIDENT in the answer.
+11. Write the final answer citing exact file paths and line numbers
+    (e.g. "In src/auth/middleware.ts at line 42, the guard checks...").
+
+TOOL SELECTION GUIDE:
+  "what does X do?"                 → search_code, then read_file
+  "where is X defined?"             → grep_code or call_graph
+  "who calls X?" / "what calls X?"  → call_graph
+  "what classes/routes exist?"      → run_grep_ast
+  "what's exported from this file?" → list_symbols (avoid read_file for this)
+  "what libraries/packages are used?" → get_dependencies
+  "show me all API endpoints"       → run_grep_ast(node_type="route")
+  "is X imported anywhere?"         → grep_code
 
 RECOVERY — when search returns poor results:
   • Rephrase the query with different terms
   • Use get_file_structure to find the right area, then read_file
   • Use grep_code with the exact function or variable name
+  • Use run_grep_ast if you're looking for a structural pattern
 
 RULES:
-  • Every claim must come from code you read — never from general knowledge.
+  • Every repo-specific claim (what this code does, file names, APIs, behavior)
+    must come from code you read — never from general knowledge.
   • Be concrete: name functions, classes, variables, exact file paths.
   • Cite sources inline: "In `src/main.ts`..." not vague statements.
   • If the codebase genuinely contains nothing relevant after thorough search,
     say so honestly: "I couldn't find this in the indexed code." and briefly
     describe what you searched for.
+
+GENERAL NOTE — separating your knowledge from the repo's:
+  • Keep the main answer strictly grounded in the code you read.
+  • When practical engineering knowledge helps — toolchain prerequisites,
+    version compatibility, what a command does, common pitfalls — put it in a
+    final section that begins on its own line with EXACTLY this label:
+        **General note (not from the repo):**
+    followed by your guidance. This tells the reader it's your expertise, not a
+    repo fact, so they can trust the grounded part absolutely.
+  • For setup / run / install / dependency questions this General note is
+    REQUIRED: state the runtime versions, global CLIs, and OS gotchas you know
+    (e.g. which Node.js versions the framework version in package.json supports).
+  • For "what / how / where" code questions, only add it when it genuinely
+    helps — otherwise omit it entirely. Never pad. Never mix general knowledge
+    into the grounded answer above the label.
 
 OUTPUT STYLE:
   • Answer directly and concisely. Do not dump every detail you found.
@@ -87,6 +126,7 @@ OUTPUT STYLE:
 
 NOT_FOUND = "I couldn't find this in the indexed code."
 MAX_ITERATIONS = 12
+_MAX_LLM_RETRIES = 2  # per-iteration provider retries before giving up
 AGENT_ID = "kt-agent-v1"
 _SKIP_PATHS = {"project-briefing", "feature-map", "git-history"}
 
@@ -109,6 +149,10 @@ _TOOL_ARG_KEY: dict[str, str] = {
     "read_file": "path",
     "find_files": "pattern",
     "grep_code": "pattern",
+    "list_symbols": "path",
+    "get_dependencies": "filter",
+    "call_graph": "function_name",
+    "run_grep_ast": "node_type",
 }
 
 
@@ -190,16 +234,23 @@ def agent_ask(
             cb({"type": "iteration", "n": iterations_used, "max": MAX_ITERATIONS})
             if iteration == 0:
                 cb({"type": "thinking"})
-            try:
-                result = provider.complete_turn(
-                    AGENT_SYSTEM_PROMPT,
-                    messages,
-                    TOOL_DEFINITIONS,
-                )
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"llm_error:{exc}")
-                cb({"type": "error_iter", "message": str(exc)})
-                break
+            result = None
+            for _retry in range(_MAX_LLM_RETRIES):
+                try:
+                    result = provider.complete_turn(
+                        AGENT_SYSTEM_PROMPT,
+                        messages,
+                        TOOL_DEFINITIONS,
+                    )
+                    break  # success — exit retry loop
+                except Exception as exc:  # noqa: BLE001
+                    is_last = _retry == _MAX_LLM_RETRIES - 1
+                    errors.append(f"llm_error(retry={_retry}):{exc}")
+                    cb({"type": "error_iter", "message": str(exc), "retry": _retry})
+                    if is_last:
+                        break  # exhausted retries — fall through to result=None check
+            if result is None:
+                break  # all retries failed — end the agent loop
 
             if result.stop_reason == "end_turn":
                 cb({"type": "composing"})

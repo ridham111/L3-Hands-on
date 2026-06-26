@@ -76,6 +76,19 @@ def _fire_briefing_background(namespace: str, ctx: dict, brief_path: Path, setti
     t.start()
 
 
+def wait_for_briefing(namespace: str, timeout: float = 30.0) -> bool:
+    """Block until the background briefing job for `namespace` finishes (or the
+    timeout elapses). Returns True if no job is/was running or it completed.
+    Used by the eval runner so briefing-dependent checks are deterministic
+    rather than racing the daemon thread."""
+    with _BRIEFING_JOBS_LOCK:
+        t = _BRIEFING_JOBS.get(namespace)
+    if t is None:
+        return True
+    t.join(timeout)
+    return not t.is_alive()
+
+
 def _build_auth_header(token: str, clone_url: str) -> str | None:
     """Return a 'Authorization: Basic …' header value, or None for public repos.
 
@@ -279,7 +292,7 @@ def _cached_ingest_response(store, namespace: str, settings: Settings, trace_id:
     briefing_pending = briefing is None and job_running
     trace = Trace(
         trace_id=trace_id, agent_id=AGENT_ID, model_used=settings.model_used,
-        duration_ms=0, strategy="mock" if settings.backend == "mock" else "llm",
+        duration_ms=0, strategy="llm",
         repo_path=meta.get("repo_path", ""),
         is_git_repo=briefing.trace.is_git_repo if briefing else False,
         files_scanned=files or (briefing.trace.files_scanned if briefing else 0),
@@ -386,7 +399,7 @@ def ingest_repo(request: IngestRequest, *, settings: Optional[Settings] = None) 
 
     trace = Trace(
         trace_id=trace_id, agent_id=AGENT_ID, model_used=settings.model_used,
-        duration_ms=t["ms"], strategy="mock" if settings.backend == "mock" else "llm",
+        duration_ms=t["ms"], strategy="llm",
         repo_path=str(repo),
         is_git_repo=briefing.trace.is_git_repo if briefing else False,
         files_scanned=files or (briefing.trace.files_scanned if briefing else 0),

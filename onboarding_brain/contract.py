@@ -113,7 +113,7 @@ class AskRequest(BaseModel):
     question: str
     history: list[ChatTurn] = Field(default_factory=list)
     top_k: int | None = None
-    backend: str | None = None        # override active LLM backend (claude/groq/openrouter/mock)
+    backend: str | None = None        # override active LLM backend (claude/groq/openrouter)
     claude_model: str | None = None   # override Claude model for this request
 
 
@@ -159,7 +159,8 @@ class TourStop(BaseModel):
     excerpt: str = ""
     depth: int = 0              # 0 = the entry/main file; deeper = later in the flow
     imports: list[str] = Field(default_factory=list)
-    reason: str = ""           # why this file is a stop, in plain English
+    reason: str = ""           # why this file is a stop, in plain English (structural)
+    insight: str = ""          # LLM one-liner: what this file does & why it matters here
     note: str = ""             # captured team annotation, if any
     is_entry: bool = False
 
@@ -178,6 +179,7 @@ class TourResponse(BaseModel):
     total_stops: int = 0
     chapters: list[TourChapter] = Field(default_factory=list)
     wiring: dict[str, Any] | None = None
+    narrated: bool = False      # True once LLM stop-insights have been added
 
 
 # --------------------------------------------------------------------------- #
@@ -187,6 +189,7 @@ class WalkthroughSection(BaseModel):
     key: str
     title: str
     body: str = ""                              # Markdown explanation, grounded in the files
+    takeaways: list[str] = Field(default_factory=list)  # 2-3 bullet TL;DR for fast scanning
     files: list[str] = Field(default_factory=list)  # the real files this section covers
 
 

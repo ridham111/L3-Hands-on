@@ -30,7 +30,7 @@ class GroqProvider(LLMProvider):
         if not settings.groq_api_key:
             raise RuntimeError(
                 "ONBOARDING_LLM_BACKEND=groq but GROQ_API_KEY is empty. "
-                "Get a free key at https://console.groq.com/keys or use the mock backend."
+                "Get a free key at https://console.groq.com/keys or switch to the claude backend."
             )
         try:
             from groq import Groq

@@ -387,6 +387,15 @@
   .wt-sec{margin:0 0 26px;scroll-margin-top:14px}
   .wt-sec h3{font-family:var(--f-read);font-weight:600;font-size:20px;color:var(--text);margin:0 0 12px;
     padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .wt-takeaways{background:var(--brand-soft);border:1px solid var(--line);border-radius:9px;
+    padding:12px 16px 12px;margin:0 0 16px}
+  .wt-tk-h{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--brand-ink);margin-bottom:6px}
+  .wt-takeaways ul{margin:0;padding-left:18px}
+  .wt-takeaways li{font-size:14px;line-height:1.6;color:var(--text);margin:3px 0}
+  .wt-next{display:inline-block;margin-top:16px;font-size:13.5px;font-weight:600;color:var(--brand-ink);
+    text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:7px 13px}
+  .wt-next:hover{background:var(--brand-soft);border-color:var(--brand)}
   .wt-body{font-size:15px;line-height:1.75;color:var(--body)}
   .wt-body code{font-family:var(--f-mono);font-size:13px;background:var(--code-bg);border:1px solid var(--line);
     border-radius:4px;padding:1px 6px;color:var(--brand-ink)}
@@ -443,7 +452,9 @@
   .tour-lang{color:var(--muted);font-size:13px}
   .tour-lines{color:var(--faint);font-size:13px}
   .tour-sym{font-family:var(--f-mono);font-size:13px;color:var(--muted);margin-top:7px}
-  .tour-why{font-size:14px;color:var(--body);margin:12px 0 0;line-height:1.6}
+  .tour-insight{font-size:15px;color:var(--text);margin:12px 0 0;line-height:1.6;font-weight:500;
+    background:var(--brand-soft);border-left:3px solid var(--brand);border-radius:0 7px 7px 0;padding:11px 15px}
+  .tour-why{font-size:13px;color:var(--muted);margin:9px 0 0;line-height:1.55}
   .tour-note{font-size:14px;color:var(--body);background:var(--inset);border-left:2px solid var(--brand);
     border-radius:0;padding:10px 14px;margin-top:12px;line-height:1.6}
   .tour-note b{color:var(--brand-ink)}
@@ -1638,6 +1649,7 @@ function renderTour(){
         + '<span class="tour-lines">:' + s.line_start + '–' + s.line_end + '</span>'
       + '</div>'
       + (s.symbol ? '<div class="tour-sym">' + esc(s.symbol) + '</div>' : '')
+      + (s.insight ? '<div class="tour-insight">' + esc(s.insight) + '</div>' : '')
       + '<div class="tour-why">' + esc(s.reason || '') + '</div>'
       + (s.note ? '<div class="tour-note"><b>Team note:</b> ' + esc(s.note) + '</div>' : '')
       + '<pre class="tour-code">' + highlight(s.excerpt || '') + '</pre>'
@@ -1733,12 +1745,22 @@ function renderWalkthrough(){
   const toc = (w.sections || []).map((s, i) => '<a href="#wt' + i + '">' + esc(s.title) + '</a>').join('');
   const stack = (w.stack || []).map(s => '<span class="wt-chip">' + esc(s) + '</span>').join('');
   let secs = '';
-  (w.sections || []).forEach((s, i) => {
+  const _sections = w.sections || [];
+  _sections.forEach((s, i) => {
+    const takeaways = (s.takeaways && s.takeaways.length)
+      ? '<div class="wt-takeaways"><div class="wt-tk-h">Key takeaways</div><ul>'
+        + s.takeaways.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></div>'
+      : '';
+    const next = (i < _sections.length - 1)
+      ? '<a class="wt-next" href="#wt' + (i + 1) + '">Next: ' + esc(_sections[i + 1].title) + ' →</a>'
+      : '';
     secs += '<div class="wt-sec" id="wt' + i + '"><h3>' + esc(s.title) + '</h3>'
+      + takeaways
       + '<div class="wt-body">' + md(s.body || '') + '</div>'
       + ((s.files && s.files.length)
           ? '<div class="wt-files"><b>Files:</b> ' + s.files.map(f => '<code class="openfile" data-openfile="' + esc(f) + '">' + esc(f) + '</code>').join(' ') + '</div>'
           : '')
+      + next
       + '</div>';
   });
   const wire = w.wiring ? '<div class="wt-sec"><h3>How the files connect</h3>' + renderWiring(w.wiring) + '</div>' : '';
@@ -1762,7 +1784,10 @@ function walkToMarkdown(){
   const w = _walk; let out = '# ' + (w.title || activeNs) + '\n\n';
   if (w.stack && w.stack.length) out += '**Stack:** ' + w.stack.join(', ') + '\n\n';
   (w.sections || []).forEach(s => {
-    out += '## ' + s.title + '\n\n' + (s.body || '') + '\n\n';
+    out += '## ' + s.title + '\n\n';
+    if (s.takeaways && s.takeaways.length)
+      out += '**Key takeaways:**\n' + s.takeaways.map(t => '- ' + t).join('\n') + '\n\n';
+    out += (s.body || '') + '\n\n';
     if (s.files && s.files.length) out += '_Files: ' + s.files.join(', ') + '_\n\n';
   });
   return out;
@@ -1780,7 +1805,10 @@ function printWalkthrough(){
   const w = _walk;
   let body = '';
   (w.sections || []).forEach(s => {
-    body += '<section><h2>' + esc(s.title) + '</h2>' + md(s.body || '')
+    const tk = (s.takeaways && s.takeaways.length)
+      ? '<div class="tk"><b>Key takeaways</b><ul>' + s.takeaways.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></div>'
+      : '';
+    body += '<section><h2>' + esc(s.title) + '</h2>' + tk + md(s.body || '')
       + ((s.files && s.files.length) ? '<p class="files">Files: ' + s.files.map(esc).join(', ') + '</p>' : '')
       + '</section>';
   });
@@ -1789,6 +1817,8 @@ function printWalkthrough(){
     + 'h1{font-size:25px} h2{font-size:18px;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:30px}'
     + 'code{background:#f3f0eb;border:1px solid #e3ddd3;border-radius:4px;padding:0 4px;font-family:Consolas,monospace;font-size:90%;color:#9a4a28}'
     + '.files{font-size:12px;color:#888;margin-top:8px} .stack{color:#555} .li{display:block;margin:3px 0} strong{font-weight:600}'
+    + '.tk{background:#f7f4ee;border:1px solid #e3ddd3;border-radius:7px;padding:8px 14px;margin:10px 0 14px}'
+    + '.tk b{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#9a4a28} .tk ul{margin:5px 0 2px;padding-left:20px} .tk li{margin:2px 0}'
     + '</style></head><body><h1>' + esc(w.title || ('Walkthrough — ' + activeNs)) + '</h1>'
     + (w.stack && w.stack.length ? '<p class="stack"><b>Stack:</b> ' + esc(w.stack.join(', ')) + '</p>' : '')
     + body + '</body></html>';

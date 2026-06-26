@@ -2,8 +2,7 @@
 
 Trust layer: the model is told to answer ONLY from retrieved snippets and to
 say "I couldn't find this in the indexed code" otherwise; we then verify that
-every cited source was actually in the retrieved set. Works offline too — the
-mock backend returns an extractive answer from the top snippets.
+every cited source was actually in the retrieved set.
 """
 from __future__ import annotations
 
@@ -295,8 +294,6 @@ def _condense_question(question: str, history: list[dict], provider: LLMProvider
     Falls back to the offline heuristic, never fails the request."""
     if not history or not _looks_like_followup(question):
         return question
-    if settings.backend == "mock":
-        return condense_question_offline(question, history)
     try:
         result = provider.complete(CONDENSE_SYSTEM_PROMPT, build_condense_prompt(question, history))
         rewritten = str(_parse(result.text).get("question") or "").strip()
@@ -306,18 +303,6 @@ def _condense_question(question: str, history: list[dict], provider: LLMProvider
         errors.append(f"condense_failed: {exc}")
     return condense_question_offline(question, history)
 
-
-def _mock_answer(question: str, chunks: list[dict]) -> tuple[str, list[str]]:
-    if not chunks:
-        return NOT_FOUND, []
-    top = chunks[:3]
-    lines = [f"Based on the indexed code, the most relevant places are:"]
-    for c in top:
-        m = c["metadata"]
-        first = next((ln.strip() for ln in c["text"].splitlines() if ln.strip()), "")
-        lines.append(f"- {m['path']} (lines {m['line_start']}-{m['line_end']}): {first[:120]}")
-    lines.append("Open these files for details. (Offline mode: extractive answer; set a Groq key for natural-language answers.)")
-    return "\n".join(lines), [c["metadata"]["path"] for c in top]
 
 
 def ask(request: AskRequest, *, settings: Optional[Settings] = None,
@@ -429,46 +414,42 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
         # widen the strongest hits with their neighboring code (prompt-only)
         chunks = _expand_neighbors(store, namespace, chunks)
 
-        if settings.backend == "mock":
-            answer, used = _mock_answer(request.question, chunks)
-            strategy = "mock"
-        else:
-            strategy = "llm"
-            try:
-                chat_prompt = build_chat_prompt(request.question, chunks, history,
-                                                settings.chat_context_budget_chars)
-                result = provider.complete(CHAT_SYSTEM_PROMPT, chat_prompt)
-                parsed = _parse(result.text)
-                answer = str(parsed.get("answer", "")).strip()
-                # If the model returned not-found but we have chunks, retry once
-                # with an explicit instruction to use the provided snippets.
-                _nf = NOT_FOUND.lower()[:20]
-                if answer.lower().startswith(_nf) and chunks:
-                    retry_system = CHAT_SYSTEM_PROMPT + (
-                        "\n\nCRITICAL OVERRIDE: The context block above contains real code snippets. "
-                        "You MUST use them. Write a grounded answer referencing those files now. "
-                        "Do NOT output not-found. This is mandatory."
-                    )
-                    result2 = provider.complete(retry_system, chat_prompt)
-                    parsed2 = _parse(result2.text)
-                    answer2 = str(parsed2.get("answer", "")).strip()
-                    if answer2 and not answer2.lower().startswith(_nf):
-                        parsed = parsed2
-                        answer = answer2
-                        errors.append("not_found_retry:success")
-                    else:
-                        errors.append("not_found_retry:failed")
-                note = str(parsed.get("general_note", "")).strip()
-                # only attach general guidance to setup/run questions; never to
-                # "what/how/where" code questions (keeps answers repo-grounded)
-                if (note and _SETUP_Q.search(request.question)
-                        and not answer.lower().startswith(NOT_FOUND.lower()[:20])):
-                    answer += f"\n\n**General note (not from the repo):** {note}"
-                raw_used = parsed.get("used_sources")
-                used = [_norm_citation(str(s)) for s in raw_used] if isinstance(raw_used, list) else []
-            except (LLMError, ValueError) as exc:
-                errors.append(f"answer_failed: {exc}")
-                answer, used, strategy = NOT_FOUND, [], "degraded"
+        strategy = "llm"
+        try:
+            chat_prompt = build_chat_prompt(request.question, chunks, history,
+                                            settings.chat_context_budget_chars)
+            result = provider.complete(CHAT_SYSTEM_PROMPT, chat_prompt)
+            parsed = _parse(result.text)
+            answer = str(parsed.get("answer", "")).strip()
+            # If the model returned not-found but we have chunks, retry once
+            # with an explicit instruction to use the provided snippets.
+            _nf = NOT_FOUND.lower()[:20]
+            if answer.lower().startswith(_nf) and chunks:
+                retry_system = CHAT_SYSTEM_PROMPT + (
+                    "\n\nCRITICAL OVERRIDE: The context block above contains real code snippets. "
+                    "You MUST use them. Write a grounded answer referencing those files now. "
+                    "Do NOT output not-found. This is mandatory."
+                )
+                result2 = provider.complete(retry_system, chat_prompt)
+                parsed2 = _parse(result2.text)
+                answer2 = str(parsed2.get("answer", "")).strip()
+                if answer2 and not answer2.lower().startswith(_nf):
+                    parsed = parsed2
+                    answer = answer2
+                    errors.append("not_found_retry:success")
+                else:
+                    errors.append("not_found_retry:failed")
+            note = str(parsed.get("general_note", "")).strip()
+            # only attach general guidance to setup/run questions; never to
+            # "what/how/where" code questions (keeps answers repo-grounded)
+            if (note and _SETUP_Q.search(request.question)
+                    and not answer.lower().startswith(NOT_FOUND.lower()[:20])):
+                answer += f"\n\n**General note (not from the repo):** {note}"
+            raw_used = parsed.get("used_sources")
+            used = [_norm_citation(str(s)) for s in raw_used] if isinstance(raw_used, list) else []
+        except (LLMError, ValueError) as exc:
+            errors.append(f"answer_failed: {exc}")
+            answer, used, strategy = NOT_FOUND, [], "degraded"
 
     # grounding: cited sources must be retrieved snippets or, at minimum,
     # real indexed files inferred from them (e.g. named in an import)
