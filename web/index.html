@@ -513,16 +513,16 @@
   }
 
   /* ---------- wiring diagram ---------- */
-  .wirewrap{border-top:1px solid var(--line);background:var(--inset)}
-  .wire-h{display:flex;align-items:center;gap:8px;padding:10px 20px;cursor:pointer;
+  .wirewrap{border-top:1px solid var(--line);background:var(--bg)}
+  .wire-h{display:flex;align-items:center;gap:8px;padding:11px 20px;cursor:pointer;
     font-size:12px;color:var(--muted);user-select:none}
-  .wire-h strong{color:var(--text);font-weight:700}
-  .wire-h:hover{color:var(--brand-ink)}
-  .wire-h .caret{color:var(--faint);font-size:9px;transition:transform .18s}
+  .wire-h strong{color:var(--text);font-weight:600;font-size:12.5px}
+  .wire-h:hover{color:var(--text)}
+  .wire-h .caret{color:var(--muted);font-size:9px;transition:transform .2s;flex:none}
   .wirewrap.open .wire-h .caret{transform:rotate(90deg);color:var(--brand)}
   .wire-hint{margin-left:auto;font-size:10.5px;color:var(--faint);font-style:italic}
   .wire-body{display:none;padding:4px 16px 20px}
-  .wirewrap.open .wire-body{display:block;animation:reveal .24s ease both}
+  .wirewrap.open .wire-body{display:block;animation:reveal .22s ease both}
   .wire-ctrl{display:flex;align-items:center;gap:5px;padding:0 2px 10px;flex-wrap:wrap}
   .wire-ctrl button{background:var(--inset);border:1px solid var(--line-strong);color:var(--muted);
     border-radius:6px;font-size:13px;font-weight:700;width:26px;height:26px;cursor:pointer;
@@ -532,29 +532,37 @@
   .wire-legend{display:flex;flex-wrap:wrap;gap:8px;padding:0;font-size:11px;color:var(--body)}
   .wire-legend span{display:inline-flex;align-items:center;gap:4px}
   .wire-legend .ek b{width:16px;height:0;display:inline-block;vertical-align:middle}
-  .wire-canvas{cursor:grab;overflow:hidden;border-radius:10px;border:1px solid var(--line)}
-  .wire-canvas.dragging{cursor:grabbing}
+  .wire-canvas{overflow-x:auto;overflow-y:hidden;border-radius:10px;border:1px solid var(--line);
+    background:var(--inset);scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+  .wire-canvas::-webkit-scrollbar{height:5px}
+  .wire-canvas::-webkit-scrollbar-track{background:transparent}
+  .wire-canvas::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:99px}
+  .wire-zoom-label{font-size:10.5px;color:var(--muted);font-family:var(--f-mono);min-width:34px;text-align:center}
   svg.wire{display:block}
-  svg.wire .wn{filter:none}
-  svg.wire .wlane{fill:var(--text);opacity:.03}
-  svg.wire .wlbl{font-family:var(--f-mono);font-size:12px;fill:rgba(236,230,220,.88);font-weight:500}
-  svg.wire .we{fill:none;stroke-width:1.8;opacity:.45;animation:wedraw .5s ease both}
-  svg.wire .we-import{stroke-width:2.2;opacity:.72}
-  svg.wire .wnode{animation:cxpop .35s cubic-bezier(.3,1.4,.5,1) both;cursor:pointer}
-  svg.wire .wnode .wn{transition:opacity .15s,filter .15s}
-  svg.wire .wtooltip{pointer-events:none;opacity:0;transition:opacity .12s}
+  svg.wire .wn{fill:var(--card);stroke:var(--line-strong);stroke-width:1;
+    transition:stroke .18s,stroke-width .18s,filter .18s}
+  svg.wire .wlbl{font-family:var(--f-mono);font-size:11.5px;fill:rgba(222,214,200,.92);font-weight:500}
+  svg.wire .wlbl2{font-family:var(--f-mono);font-size:9px;fill:rgba(148,136,116,.7);font-weight:400}
+  svg.wire .we{fill:none;stroke-width:1.6;opacity:.55;animation:wedraw .6s ease both}
+  svg.wire .we-import{stroke-width:2;opacity:.72}
+  svg.wire .wnode{cursor:pointer;animation:cxpop .38s cubic-bezier(.25,1.35,.45,1) both}
+  svg.wire .wtooltip{pointer-events:none;opacity:0;transition:opacity .14s}
   svg.wire .wtooltip.show{opacity:1}
-  svg.wire.focusing .we{opacity:.08}
-  svg.wire .we.lit{opacity:1 !important;stroke-width:2.6 !important}
-  svg.wire .we.dim{opacity:.05 !important}
-  svg.wire .wnode.dim .wn{opacity:.18}
-  svg.wire .wnode:hover .wn{filter:brightness(1.2)}
+  svg.wire.focusing .we{opacity:.06}
+  svg.wire .we.lit{opacity:1!important;stroke-width:2.6!important}
+  svg.wire .we.dim{opacity:.04!important}
+  svg.wire .wnode.dim .wn{opacity:.12;transition:opacity .2s}
+  svg.wire .wnode.dim text{opacity:.1;transition:opacity .2s}
+  svg.wire .wnode:hover .wn,svg.wire.focusing .wnode:not(.dim) .wn{
+    stroke:var(--brand);stroke-width:1.5;
+    filter:drop-shadow(0 2px 8px rgba(100,60,20,.3))}
+  svg.wire .wnode.active .wn{stroke:var(--brand);stroke-width:1.5}
   svg.wire .wchip{pointer-events:none}
-  svg.wire .we-lbl{pointer-events:none;opacity:0;transition:opacity .12s}
+  svg.wire .we-lbl{pointer-events:none;opacity:0;transition:opacity .14s}
   svg.wire .we-lbl.show{opacity:1}
-  @keyframes wedraw{from{opacity:0}to{}}
-  @keyframes wireflow{to{stroke-dashoffset:-30}}
-  svg.wire .we-import.lit{stroke-dasharray:5 4 !important;animation:wireflow .7s linear infinite !important;opacity:1 !important}
+  @keyframes wedraw{from{stroke-dasharray:0 1;opacity:0}to{stroke-dasharray:1 0;opacity:1}}
+  @keyframes wireflow{to{stroke-dashoffset:-.1}}
+  svg.wire .we-import.lit{stroke-dasharray:.07 .05!important;animation:wireflow .65s linear infinite!important;opacity:1!important}
 
 
   /* ---------- source cards (cited from index) ---------- */
@@ -736,13 +744,13 @@
   [data-theme="light"] .composer{background:#eceef2;border-top-color:#dde0e8}
   [data-theme="light"] .thinking{color:var(--muted)}
   /* wiring diagram — theme-sensitive */
-  [data-theme="light"] svg.wire .wlbl{fill:rgba(16,14,22,.82)}
-  [data-theme="light"] svg.wire .wn{fill:#f0f1f8;stroke:#cdd0de}
-  [data-theme="light"] svg.wire .wlane{fill:#5b38cc;opacity:.025}
-  [data-theme="light"] svg.wire .wtooltip rect{fill:#ffffff;stroke:#d4d7e0}
+  [data-theme="light"] svg.wire .wlbl{fill:rgba(22,18,12,.9)}
+  [data-theme="light"] svg.wire .wlbl2{fill:rgba(80,68,52,.62)}
+  [data-theme="light"] svg.wire .wn{fill:#f4f5fa;stroke:#c8ccdb}
+  [data-theme="light"] svg.wire .wtooltip rect{fill:#ffffff;stroke:#d0d3e0}
   [data-theme="light"] svg.wire .wtooltip text{fill:#111318}
-  [data-theme="light"] .wire-canvas{border-color:#cdd0de;background:#eceef6}
-  [data-theme="light"] svg.wire .we-lbl rect{fill:#ffffff;stroke:#cdd0de}
+  [data-theme="light"] .wire-canvas{border-color:#c8ccdb;background:#eef0f6}
+  [data-theme="light"] svg.wire .we-lbl rect{fill:#ffffff;stroke:#cdd0db}
   [data-theme="light"] svg.wire .we-lbl text{fill:#363b4a}
   /* rounder corners throughout light mode */
   [data-theme="light"] .bot-card{border-radius:18px !important;border-top-left-radius:10px !important}
@@ -1234,98 +1242,107 @@ function addTurn(html, cls){
   return d;
 }
 
-/* ---------- wiring diagram (vertical flow: main file → imports, top to bottom) ---------- */
-// each role has a colored badge with a letter symbol (VS Code-style)
+/* ---------- wiring diagram ---------- */
 const WIRE_SYMBOL = {
-  component: 'C',  // Component
-  service:   'S',  // Service
-  template:  'T',  // Template/HTML
-  model:     'M',  // Model/DTO
-  binding:   'B',  // Binding/Pipe
-  module:    'X',  // Module
-  code:      'ƒ',  // Function/Script
-  doc:       '#',  // Documentation
-  style:     '~',  // Stylesheet
+  component:'C', service:'S', template:'T', model:'M',
+  binding:'B', module:'X', code:'ƒ', doc:'#', style:'~',
 };
 const WIRE_COLOR = {
-  component: '#e08a64',  // terracotta-coral
-  service:   '#7aa6d4',  // blue
-  template:  '#dd7a5b',  // brand terracotta
-  model:     '#a98cce',  // amethyst
-  binding:   '#5fb0c0',  // cyan-teal
-  module:    '#d2a05e',  // amber
-  code:      '#9aa0ac',  // cool gray
-  doc:       '#cb9a78',  // clay
-  style:     '#c98ab0',  // rose-mauve
+  component:'#5b8ff9', service:'#52c4a0', template:'#e8834a',
+  model:'#9e7ee8',     binding:'#e06b82', module:'#e8c44a',
+  code:'#8a9bb0',      doc:'#78b87c',     style:'#c07ac8',
 };
-const WIRE_EDGE_COLOR = {import:'#dd7a5b', folder:'#7a6558', related:'#4e4038'};
-const EDGE_DASH  = {import:'',folder:'6 4',related:'2 5'};
+const WIRE_EDGE_COLOR = {import:'#c8845a', folder:'#706050', related:'#3e3830'};
+const EDGE_DASH = {import:'', folder:'6 4', related:'2 5'};
 let _wireSeq = 0;
 
-/* ── wiring zoom/pan state ── */
+/* ── wiring zoom state: null=fit-to-width, number=explicit scale ── */
 const _wireState = {};
-function _wGet(id){ return _wireState[id] || (_wireState[id] = {s:1,tx:0,ty:0}); }
+function _wGet(id){ return _wireState[id]||(_wireState[id]={s:null}); }
 function _wApply(id){
-  const st = _wGet(id);
-  const g = document.querySelector('#'+id+' .wire-vp');
-  if (g) g.setAttribute('transform','translate('+Math.round(st.tx)+','+Math.round(st.ty)+') scale('+st.s+')');
-}
-function wireZoomIn(id){ const st=_wGet(id); st.s=Math.min(4,st.s*1.25); _wApply(id); }
-function wireZoomOut(id){ const st=_wGet(id); st.s=Math.max(0.2,st.s*0.8); _wApply(id); }
-function wireZoomReset(id){ _wireState[id]={s:1,tx:0,ty:0}; _wApply(id); }
-function wireWheel(e,id){
-  e.preventDefault();
   const st=_wGet(id);
-  st.s = Math.max(0.2, Math.min(4, st.s * (e.deltaY<0?1.14:0.88)));
+  const wrap=document.getElementById(id); if(!wrap) return;
+  const svg=wrap.querySelector('svg.wire'); if(!svg) return;
+  const canvas=wrap.querySelector('.wire-canvas'); if(!canvas) return;
+  const nw=+svg.dataset.nw, nh=+svg.dataset.nh, ch=Math.min(nh,380);
+  const lbl=wrap.querySelector('.wire-zoom-label');
+  if(st.s===null){
+    // Fit mode: SVG scales to fill container width — all nodes visible, no scroll needed
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    svg.style.cssText='width:100%;height:auto;max-height:'+ch+'px;display:block';
+    canvas.style.overflowX='hidden'; canvas.style.cursor='default';
+    if(lbl) lbl.textContent='fit';
+  } else {
+    // Zoomed: fixed pixel size, container scrolls horizontally
+    svg.style.cssText='display:block';
+    svg.setAttribute('width', Math.round(nw*st.s));
+    svg.setAttribute('height', Math.round(ch*st.s));
+    canvas.style.overflowX='auto'; canvas.style.cursor='grab';
+    if(lbl) lbl.textContent=Math.round(st.s*100)+'%';
+  }
+}
+function wireZoomIn(id){
+  const st=_wGet(id);
+  const svg=document.querySelector('#'+id+' svg.wire');
+  const canvas=document.querySelector('#'+id+' .wire-canvas');
+  const nw=+(svg?.dataset?.nw||600), cw=(canvas?.clientWidth||600);
+  const cur=st.s!==null?st.s:cw/nw;
+  st.s=Math.min(2.5,+(cur+0.25).toFixed(2)); _wApply(id);
+}
+function wireZoomOut(id){
+  const st=_wGet(id);
+  const svg=document.querySelector('#'+id+' svg.wire');
+  const canvas=document.querySelector('#'+id+' .wire-canvas');
+  const nw=+(svg?.dataset?.nw||600), cw=(canvas?.clientWidth||600);
+  const fitS=cw/nw;
+  if(st.s===null||st.s<=fitS+0.01){ st.s=null; }
+  else { st.s=Math.max(fitS,+(st.s-0.25).toFixed(2)); }
   _wApply(id);
 }
-function wireDown(e,id){
-  if(e.button!==0) return; e.preventDefault();
-  const st=_wGet(id); st.dx=e.clientX; st.dy=e.clientY;
-  const canvas=document.getElementById(id)?.querySelector('.wire-canvas');
-  canvas?.classList.add('dragging');
-  const mv=me=>{ st.tx+=me.clientX-st.dx; st.ty+=me.clientY-st.dy; st.dx=me.clientX; st.dy=me.clientY; _wApply(id); };
-  const up=()=>{ canvas?.classList.remove('dragging'); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
-  document.addEventListener('mousemove',mv);
-  document.addEventListener('mouseup',up);
+function wireZoomReset(id){ _wGet(id).s=null; _wApply(id); }
+function wireCanvasDrag(e,id){
+  if(e.button!==0) return;
+  const st=_wGet(id); if(st.s===null) return; // no drag in fit mode
+  const canvas=e.currentTarget, sx=e.clientX+canvas.scrollLeft;
+  canvas.style.cursor='grabbing';
+  const mv=me=>{ canvas.scrollLeft=sx-me.clientX; };
+  const up=()=>{ canvas.style.cursor='grab';
+    document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
 }
 
 function renderWiring(w){
   if (!w || (w.nodes||[]).length < 2) return '';
   const id = 'wire' + (++_wireSeq);
-  // Horizontal left→right layout: depth 0 (entry) is leftmost column.
-  // Each depth level is a vertical lane; files in the same lane stack top→bottom.
-  const NW=218, NH=66, COLW=262, ROWV=88, PX=32, PY=28;
+  const NW=212, NH=54, COLW=254, ROWV=74, PX=26, PY=28;
 
   const byDepth = {};
   w.nodes.forEach(n => { const d=n.depth??0; (byDepth[d]=byDepth[d]||[]).push(n); });
   const levels = Object.keys(byDepth).map(Number).sort((a,b)=>a-b);
   const maxPerCol = Math.max(1, ...levels.map(d=>byDepth[d].length));
   const W = PX*2 + (levels.length-1)*COLW + NW;
-  const H = PY*2 + (maxPerCol-1)*ROWV + NH;
+  const H = PY*2 + (maxPerCol-1)*ROWV + NH + 36; // extra bottom clearance for below-routing
 
-  // Node positions — each depth level is a column, nodes centred vertically
   const pos = {};
   levels.forEach((d,ci) => {
     const grp = byDepth[d];
     const startY = PY + ((maxPerCol - grp.length) * ROWV) / 2;
     grp.forEach((n,ri) => {
-      pos[n.id] = {x:PX+ci*COLW, y:startY+ri*ROWV, role:n.role, label:n.label, entry:n.entry, symbols:n.symbols||[]};
+      pos[n.id] = {x:PX+ci*COLW, y:startY+ri*ROWV, role:n.role, label:n.label,
+                   dir:n.dir||'', entry:n.entry, symbols:n.symbols||[]};
     });
   });
 
-  // Depth lane backgrounds (subtle column highlight)
-  let lanes = '';
-  levels.forEach((_d,ci) => {
-    const lx = PX+ci*COLW-8, lw = NW+16, lh = H-PY*0.6;
-    lanes += '<rect class="wlane" x="'+lx+'" y="'+(PY*0.4)+'" width="'+lw+'" height="'+lh+'" rx="10"/>';
-  });
+  // Per-edge-kind arrow markers
+  const markerDef = '<defs>'
+    + Object.entries(WIRE_EDGE_COLOR).map(([kind,col]) =>
+        '<marker id="'+id+'mk-'+kind+'" viewBox="0 0 10 10" refX="9" refY="5" '
+        +'markerWidth="5" markerHeight="5" orient="auto-start-reverse">'
+        +'<path d="M1 2.5 L9 5 L1 7.5 z" fill="'+col+'" opacity=".85"/></marker>'
+      ).join('')
+    +'</defs>';
 
-  // Arrow marker
-  const markerDef = '<defs><marker id="'+id+'a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
-    +'<path d="M0 1.5 L9 5 L0 8.5 z" fill="#a07858"/></marker></defs>';
-
-  // Edges with import-name labels
+  // Edges
   let edges = '', edgeLabels = '', ei = 0;
   w.edges.forEach(e => {
     const a=pos[e.from], b=pos[e.to]; if(!a||!b) return;
@@ -1337,94 +1354,95 @@ function renderWiring(w){
 
     const isSameCol = Math.abs(a.x - b.x) < 5;
     if(isSameCol){
-      // Same column: vertical S-curve
-      const sx=a.x+NW/2, sy=(a.y<b.y?a.y+NH:a.y), ex=b.x+NW/2, ey=(a.y<b.y?b.y:b.y+NH);
-      const cy=(sy+ey)/2;
-      pathD='M'+sx+' '+sy+' C'+sx+' '+cy+' '+ex+' '+cy+' '+ex+' '+ey;
-      mx=(sx+ex)/2; my=cy;
+      // Same column: route to the right with a smooth S-loop
+      const sx=a.x+NW, sy=a.y+NH/2, ex=b.x+NW, ey=b.y+NH/2;
+      const ox=38;
+      pathD='M'+sx+' '+sy+' C'+(sx+ox)+' '+sy+' '+(ex+ox)+' '+ey+' '+ex+' '+ey;
+      mx=sx+ox; my=(sy+ey)/2;
     } else if(a.x < b.x){
-      // Forward: exit right of a → enter left of b (normal import flow)
+      // Forward (left→right): smooth horizontal bezier, exit right / enter left
       const sx=a.x+NW, sy=a.y+NH/2, ex=b.x, ey=b.y+NH/2;
-      const span=ex-sx, cx1=sx+span*0.42, cx2=ex-span*0.42;
-      pathD='M'+sx+' '+sy+' C'+cx1+' '+sy+' '+cx2+' '+ey+' '+ex+' '+ey;
+      const span=ex-sx, cp=span*0.46;
+      pathD='M'+sx+' '+sy+' C'+(sx+cp)+' '+sy+' '+(ex-cp)+' '+ey+' '+ex+' '+ey;
       mx=(sx+ex)/2; my=(sy+ey)/2;
     } else {
-      // Backward: arc above the diagram
-      const sx=a.x, sy=a.y+NH/2, ex=b.x+NW, ey=b.y+NH/2;
-      const arcY=PY*0.2;
-      pathD='M'+sx+' '+sy+' C'+(sx-40)+' '+arcY+' '+(ex+40)+' '+arcY+' '+ex+' '+ey;
-      mx=(sx+ex)/2; my=arcY;
+      // Backward: route below the diagram, arc under all nodes
+      const sx=a.x+NW/2, sy=a.y+NH, ex=b.x+NW/2, ey=b.y+NH;
+      const belowY = H - 10;
+      pathD='M'+sx+' '+sy+' C'+sx+' '+belowY+' '+ex+' '+belowY+' '+ex+' '+ey;
+      mx=(sx+ex)/2; my=belowY;
     }
 
-    edges += '<path class="we we-'+kind+'" id="'+eid+'" data-a="'+esc(e.from)+'" data-b="'+esc(e.to)+'"'
+    edges += '<path class="we we-'+kind+'" id="'+eid
+      +'" data-a="'+esc(e.from)+'" data-b="'+esc(e.to)+'"'
       +' stroke="'+sc+'"'+(dash?' stroke-dasharray="'+dash+'"':'')
-      +' style="animation-delay:'+(ei*38)+'ms" d="'+pathD+'" marker-end="url(#'+id+'a)"/>';
+      +' pathLength="1"'
+      +' style="animation-delay:'+(ei*45)+'ms"'
+      +' d="'+pathD+'" marker-end="url(#'+id+'mk-'+kind+')"/>';
 
-    // Import name label (hidden, shown on hover)
+    // Import name label (shown on hover)
     const impNames = (e.imports||[]).slice(0,3);
-    if(impNames.length){
+    if(impNames.length && kind==='import'){
       const lbl = impNames.join(', ');
-      const lblW = Math.min(lbl.length*6.2+18, 170), lblH=17;
+      const lblW = Math.min(lbl.length*6+18, 180), lblH=17;
       const lx = Math.max(PX, Math.min(W-lblW-PX, mx-lblW/2));
-      const ly = my-lblH-4;
+      const ly = Math.min(my-22, H-20);
       edgeLabels += '<g class="we-lbl" data-eid="'+eid+'">'
-        +'<rect x="'+lx+'" y="'+ly+'" width="'+lblW+'" height="'+lblH+'" rx="3" fill="#1b1916" stroke="#38342e" stroke-width="1"/>'
-        +'<text x="'+(lx+9)+'" y="'+(ly+11.5)+'" font-family="ui-monospace,monospace" font-size="8.5" fill="#c0a882">'+esc(lbl)+'</text>'
+        +'<rect x="'+lx+'" y="'+ly+'" width="'+lblW+'" height="'+lblH
+        +'" rx="4" fill="#18160f" stroke="#3a3326" stroke-width="1" opacity=".95"/>'
+        +'<text x="'+(lx+9)+'" y="'+(ly+11.5)
+        +'" font-family="ui-monospace,monospace" font-size="8.5" fill="#c8a870">'+esc(lbl)+'</text>'
         +'</g>';
     }
     ei++;
   });
 
-  // Node groups — role accent strip + badge + filename + symbol chips
+  // Nodes — role dot + filename + short directory path
   let nodes = '';
   w.nodes.forEach((n,k) => {
     const p = pos[n.id]; if(!p) return;
-    const c = WIRE_COLOR[p.role]||'#94a3b8';
+    const c = WIRE_COLOR[p.role]||'#8a9bb0';
     const sym = WIRE_SYMBOL[p.role]||'ƒ';
-    const maxLbl = p.entry ? 15 : 19;
-    const short = p.label.length>maxLbl ? p.label.slice(0,maxLbl-1)+'…' : p.label;
+    const fname = p.label;
+    const fshort = fname.length>22 ? fname.slice(0,21)+'…' : fname;
+    const dir = (n.id.includes('/') ? n.id.split('/').slice(0,-1).join('/') : '');
+    const dirShort = dir.length>26 ? '…'+dir.slice(-25) : dir;
     const full = n.id;
-    const tipW = Math.min(Math.max(full.length*6.4+18,100),300);
-    const tipX = Math.max(2, Math.min(p.x-(tipW-NW)/2, W-tipW-2));
-    const tipY = p.y - 27;
-
-    // Symbol chips row
-    let chips = '';
-    (p.symbols||[]).slice(0,3).forEach((s,si) => {
-      const cs = s.length>9?s.slice(0,8)+'…':s;
-      const cw = cs.length*6+14;
-      const cx = p.x+12 + si*(cw+5);
-      if(cx+cw > p.x+NW-6) return;
-      chips += '<g class="wchip">'
-        +'<rect x="'+cx+'" y="'+(p.y+43)+'" width="'+cw+'" height="15" rx="3" fill="'+c+'" opacity="0.16"/>'
-        +'<text x="'+(cx+7)+'" y="'+(p.y+53.5)+'" fill="'+c+'" font-size="9" font-family="ui-monospace,monospace" font-weight="700">'+esc(cs)+'</text>'
-        +'</g>';
-    });
+    const tipW = Math.min(Math.max(full.length*6.2+18,100),310);
+    const tipX = Math.max(2, Math.min(p.x-(tipW-NW)/2, W-tipW-4));
+    // Place tooltip below node; flip above if near bottom
+    const tipBelow = p.y + NH + 6;
+    const tipY = tipBelow + 22 < H ? tipBelow : p.y - 28;
 
     nodes += '<g class="wnode" data-id="'+esc(n.id)+'"'
       +' onclick="wireOpenSource(event)" onmouseenter="wireEnter(event)" onmouseleave="wireLeave(event)"'
-      +' style="animation-delay:'+(200+k*50)+'ms">'
-      // Card background
+      +' style="animation-delay:'+(180+k*45)+'ms">'
+      // Card
       +'<rect class="wn" x="'+p.x+'" y="'+p.y+'" width="'+NW+'" height="'+NH+'" rx="10"'
-        +' fill="#1e1c19" stroke="'+(p.entry?'var(--brand)':'#2c2a26')+'" stroke-width="'+(p.entry?1.8:1)+'"/>'
-      // Left accent strip
-      +'<rect x="'+p.x+'" y="'+(p.y+1)+'" width="4" height="'+(NH-2)+'" rx="2" fill="'+c+'" opacity="0.82"/>'
-      // Role badge
-      +'<rect x="'+(p.x+11)+'" y="'+(p.y+10)+'" width="19" height="19" rx="4" fill="'+c+'" opacity="0.88"/>'
-      +'<text x="'+(p.x+20.5)+'" y="'+(p.y+23)+'" font-size="11" fill="#fff" font-weight="800" text-anchor="middle" font-family="ui-monospace,monospace">'+sym+'</text>'
-      // Filename
-      +'<text class="wlbl" x="'+(p.x+36)+'" y="'+(p.y+25)+'">'+esc(short)+'</text>'
-      // MAIN badge
+        +' stroke="'+(p.entry?'var(--brand)':'var(--line-strong)')+'"'
+        +' stroke-width="'+(p.entry?1.6:1)+'"/>'
+      // Entry glow strip across top
       +(p.entry
-        ? '<rect x="'+(p.x+NW-40)+'" y="'+(p.y+9)+'" width="32" height="14" rx="3" fill="var(--brand)" opacity="0.88"/>'
-          +'<text x="'+(p.x+NW-24)+'" y="'+(p.y+19.5)+'" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" font-family="var(--f-ui)" letter-spacing="0.7">MAIN</text>'
+        ? '<rect x="'+(p.x+10)+'" y="'+p.y+'" width="'+(NW-20)+'" height="2" rx="1" fill="var(--brand)" opacity=".6"/>'
         : '')
-      // Symbol chips
-      + chips
-      // Tooltip (full path)
+      // Role dot
+      +'<circle cx="'+(p.x+16)+'" cy="'+(p.y+NH/2)+'" r="4.5" fill="'+c+'" opacity=".9"/>'
+      // Role symbol inside dot area (tiny)
+      +'<text x="'+(p.x+16)+'" y="'+(p.y+NH/2+3.5)+'" font-size="6" fill="#fff" font-weight="800"'
+        +' text-anchor="middle" font-family="ui-monospace,monospace" opacity=".9">'+sym+'</text>'
+      // Filename
+      +'<text class="wlbl" x="'+(p.x+28)+'" y="'+(p.y+(dirShort?21:NH/2+4.5))+'">'+esc(fshort)+'</text>'
+      // Directory path
+      +(dirShort
+        ? '<text class="wlbl2" x="'+(p.x+28)+'" y="'+(p.y+36)+'">'+esc(dirShort)+'</text>'
+        : '')
+      // Tooltip (full path, on hover)
       +'<g class="wtooltip">'
-        +'<rect x="'+tipX+'" y="'+(tipY-3)+'" width="'+tipW+'" height="22" rx="5" fill="#1a1814" stroke="#38342e" stroke-width="1"/>'
-        +'<text x="'+(tipX+9)+'" y="'+(tipY+12)+'" font-family="ui-monospace,Consolas,monospace" font-size="10.5" fill="#eae3d8" font-weight="500">'+esc(full)+'</text>'
+        +'<rect x="'+tipX+'" y="'+tipY+'" width="'+tipW+'" height="20" rx="5"'
+          +' fill="#18160f" stroke="#3a3326" stroke-width="1"/>'
+        +'<text x="'+(tipX+9)+'" y="'+(tipY+13.5)
+          +'" font-family="ui-monospace,Consolas,monospace" font-size="10" fill="#e0d8c8" font-weight="500">'
+          +esc(full)+'</text>'
       +'</g>'
       +'</g>';
   });
@@ -1432,8 +1450,10 @@ function renderWiring(w){
   // Legend
   const roles = [...new Set(w.nodes.map(n=>n.role))];
   const legend = roles.map(r=>
-    '<span><svg width="13" height="13" viewBox="0 0 13 13"><rect width="13" height="13" rx="3" fill="'+(WIRE_COLOR[r]||'#907868')+'"/>'
-    +'<text x="6.5" y="10" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'+(WIRE_SYMBOL[r]||'?')+'</text>'
+    '<span><svg width="10" height="10" viewBox="0 0 10 10" style="flex:none">'
+    +'<circle cx="5" cy="5" r="5" fill="'+(WIRE_COLOR[r]||'#8a9bb0')+'"/>'
+    +'<text x="5" y="8.5" font-size="5.5" fill="#fff" font-weight="800" text-anchor="middle" font-family="monospace">'
+    +(WIRE_SYMBOL[r]||'?')+'</text>'
     +'</svg>'+r+'</span>'
   ).join('')
     +'<span class="ek"><b style="border-top:2px solid '+WIRE_EDGE_COLOR.import+'"></b>imports</span>'
@@ -1443,24 +1463,23 @@ function renderWiring(w){
   return '<div class="wirewrap'+(autoOpen?' open':'')+'" id="'+id+'">'
     +'<div class="wire-h" onclick="this.parentElement.classList.toggle(\'open\')">'
     +'<span class="caret">▶</span><strong>File connections</strong>'
-    +'<span style="color:var(--faint);margin-left:7px;font-size:11px">'+w.nodes.length+' files · '+w.edges.length+' links</span>'
-    +'<span class="wire-hint">scroll=zoom · drag=pan · click=open</span></div>'
-    +'<div class="wire-body">'
-    // Controls row
-    +'<div class="wire-ctrl">'
-    +'<button onclick="wireZoomIn(\''+id+'\')" title="Zoom in">+</button>'
-    +'<button onclick="wireZoomOut(\''+id+'\')" title="Zoom out">−</button>'
-    +'<button class="wire-fit" onclick="wireZoomReset(\''+id+'\')" title="Fit to view">⊙ fit</button>'
-    +'<div class="wire-legend" style="margin-left:10px">'+legend+'</div>'
+    +'<span style="color:var(--faint);margin-left:8px;font-size:11px">'+w.nodes.length+' files · '+w.edges.length+' links</span>'
+    +'<span class="wire-hint">+ − to zoom · drag to pan · click to open</span>'
     +'</div>'
-    // Pannable/zoomable canvas
-    +'<div class="wire-canvas"'
-    +' onwheel="wireWheel(event,\''+id+'\')"'
-    +' onmousedown="wireDown(event,\''+id+'\')">'
-    +'<svg class="wire" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+Math.min(H,400)+'">'
+    +'<div class="wire-body">'
+    +'<div class="wire-ctrl">'
+    +'<button onclick="wireZoomOut(\''+id+'\')" title="Zoom out">−</button>'
+    +'<span class="wire-zoom-label">100%</span>'
+    +'<button onclick="wireZoomIn(\''+id+'\')" title="Zoom in">+</button>'
+    +'<button class="wire-fit" onclick="wireZoomReset(\''+id+'\')" title="Reset zoom">⊙</button>'
+    +'<div class="wire-legend" style="margin-left:8px">'+legend+'</div>'
+    +'</div>'
+    +'<div class="wire-canvas" onmousedown="wireCanvasDrag(event,\''+id+'\')">'
+    +'<svg class="wire" viewBox="0 0 '+W+' '+H+'" data-nw="'+W+'" data-nh="'+H
+    +'" style="width:100%;height:auto;max-height:'+Math.min(H,380)+'px;display:block">'
     +markerDef
     +'<g class="wire-vp">'
-    +lanes+edges+edgeLabels+nodes
+    +edges+edgeLabels+nodes
     +'</g>'
     +'</svg></div></div></div>';
 }
@@ -1469,17 +1488,15 @@ function wireEnter(ev){
   const g=ev.currentTarget, svg=g.closest('svg'), id=g.getAttribute('data-id');
   g.querySelector('.wtooltip')?.classList.add('show');
   svg.classList.add('focusing');
-  svg.querySelectorAll('.wnode').forEach(n=>n.classList.toggle('dim', n.getAttribute('data-id')!==id));
+  svg.querySelectorAll('.wnode').forEach(n=>n.classList.toggle('dim',n.getAttribute('data-id')!==id));
   svg.querySelectorAll('.we').forEach(e=>{
-    const hit = e.getAttribute('data-a')===id || e.getAttribute('data-b')===id;
+    const hit=e.getAttribute('data-a')===id||e.getAttribute('data-b')===id;
     e.classList.toggle('lit',hit);
     e.classList.toggle('dim',!hit);
     if(hit){
-      // show import label for this edge
-      const eid = e.id;
+      const eid=e.id;
       if(eid) svg.querySelector('.we-lbl[data-eid="'+eid+'"]')?.classList.add('show');
-      // un-dim the connected neighbor
-      const other = e.getAttribute('data-a')===id ? e.getAttribute('data-b') : e.getAttribute('data-a');
+      const other=e.getAttribute('data-a')===id?e.getAttribute('data-b'):e.getAttribute('data-a');
       svg.querySelector('.wnode[data-id="'+CSS.escape(other)+'"]')?.classList.remove('dim');
     }
   });
