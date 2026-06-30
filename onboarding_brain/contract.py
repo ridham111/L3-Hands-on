@@ -6,46 +6,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class OnboardingRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    repo_path: str = Field(..., description="Path to a local repository to brief")
-
-
-class Sourced(BaseModel):
-    answer: str = ""
-    sources: list[str] = Field(default_factory=list)
-
-
-class SetupSteps(BaseModel):
-    steps: list[str] = Field(default_factory=list)
-    sources: list[str] = Field(default_factory=list)
-
-
-class FolderInfo(BaseModel):
-    folder: str
-    purpose: str = ""
-    sources: list[str] = Field(default_factory=list)
-
-
-class FeatureInfo(BaseModel):
-    feature: str
-    detail: str = ""
-    sources: list[str] = Field(default_factory=list)
-
-
-class OwnerInfo(BaseModel):
-    area: str
-    owner: str = ""
-    sources: list[str] = Field(default_factory=list)
-
-
-class GlossaryItem(BaseModel):
-    term: str
-    meaning: str = ""
-    sources: list[str] = Field(default_factory=list)
-
-
 class Trace(BaseModel):
     trace_id: str
     agent_id: str
@@ -57,20 +17,6 @@ class Trace(BaseModel):
     files_scanned: int = 0
     errors: list[str] = Field(default_factory=list)
     grounding: dict[str, Any] | None = None
-
-
-class OnboardingResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    overview: Sourced = Field(default_factory=Sourced)
-    key_features: list[FeatureInfo] = Field(default_factory=list)
-    folder_map: list[FolderInfo] = Field(default_factory=list)
-    setup_steps: SetupSteps = Field(default_factory=SetupSteps)
-    recent_work: Sourced = Field(default_factory=Sourced)
-    owners: list[OwnerInfo] = Field(default_factory=list)
-    glossary: list[GlossaryItem] = Field(default_factory=list)
-    validation_status: Literal["passed", "warning", "failed"] = "passed"
-    trace: Trace
 
 
 # --------------------------------------------------------------------------- #
@@ -94,9 +40,6 @@ class IngestResponse(BaseModel):
     files_indexed: int = 0
     chunks_indexed: int = 0
     already_indexed: bool = False
-    briefing_pending: bool = False  # True when briefing is generating in background
-    overview: Sourced = Field(default_factory=Sourced)
-    starter_questions: list[str] = Field(default_factory=list)
     validation_status: Literal["passed", "warning", "failed"] = "passed"
     trace: Trace
 

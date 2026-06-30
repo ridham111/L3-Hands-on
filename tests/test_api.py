@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(not _HAVE, reason="fastapi not installed")
 from tests.fixtures import NODE_REPO, make_repo  # noqa: E402
 
 AUTH = {"Authorization": "Bearer test-key"}
-AGENT = "onboarding-brain"
+AGENT = "installation-guide"
 
 
 def test_home_serves_ui():
@@ -31,17 +31,18 @@ def test_home_serves_ui():
 
 
 def test_health_and_catalog():
-    assert client.get("/health").json()["agent_id"] == AGENT
-    assert client.get("/v1/agents").json()["agents"][0]["agent_id"] == AGENT
+    from onboarding_brain import AGENT_ID
+    assert client.get("/health").json()["agent_id"] == AGENT_ID
+    assert AGENT in {a["agent_id"] for a in client.get("/v1/agents").json()["agents"]}
 
 
 def test_run_requires_auth():
     assert client.post(f"/v1/agents/{AGENT}/run", json={"repo_path": "."}).status_code == 401
 
 
-def test_agent_registry_lists_multiple():
+def test_agent_registry_lists_install_guide():
     ids = {a["agent_id"] for a in client.get("/v1/agents").json()["agents"]}
-    assert {"onboarding-brain", "installation-guide"} <= ids
+    assert "installation-guide" in ids
 
 
 def test_installation_agent_runs():
@@ -52,22 +53,13 @@ def test_installation_agent_runs():
         body = r.json()
         assert body["agent_id"] == "installation-guide"
         assert body["prerequisites"] and isinstance(body["prerequisites"], list)
+        assert body["setup_steps"] and isinstance(body["setup_steps"], list)
     finally:
         shutil.rmtree(repo, ignore_errors=True)
 
 
 def test_unknown_agent_404_registry():
     assert client.post("/v1/agents/nope-zzz/run", json={"repo_path": "."}, headers=AUTH).status_code == 404
-
-
-def test_run_success():
-    repo = make_repo(NODE_REPO)
-    try:
-        r = client.post(f"/v1/agents/{AGENT}/run", json={"repo_path": str(repo)}, headers=AUTH)
-        assert r.status_code == 200
-        assert r.json()["trace"]["agent_id"] == AGENT
-    finally:
-        shutil.rmtree(repo, ignore_errors=True)
 
 
 def test_unknown_agent_404():

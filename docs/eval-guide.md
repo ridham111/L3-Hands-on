@@ -33,12 +33,11 @@ Exit code `0` = gate passed. Exit code `1` = one or more cases failed (blocks CI
 
 ## Test coverage
 
-31 deterministic cases across 5 agents:
+20 deterministic cases across 4 agents:
 
 | Agent | Cases | What is tested |
 |---|---|---|
-| `briefing` | 10 | Overview grounding, setup steps, folder map, injection resistance, empty-repo handling |
-| `chat` | 10 | Retrieval relevance, grounding, no hallucination, follow-up with history |
+| `chat` | 9 | Retrieval relevance, grounding, no hallucination, follow-up with history |
 | `tour` | 5 | Entry-point detection across Python / Node / Go / Flask / FastAPI |
 | `walkthrough` | 3 | Stack detection, section structure, file grounding |
 | `installation` | 3 | Prerequisite inference for Angular / FastAPI / Go stacks |
@@ -54,7 +53,7 @@ Crucially, the stub is **not a user-facing backend**. The one real backend is `c
 - `evals/runner.py` calls `install_stub(settings)` — the whole gate runs on it.
 - `tests/conftest.py` calls `install_stub(settings, patch_source=False)` — the pytest suite runs on it too, but `patch_source=False` leaves the real `providers.get_provider` intact for tests that inspect the real factory. Because the stub is not the SDK provider, chat falls through to the deterministic RAG pipeline (the offline test harness) rather than the live SDK agent loop.
 
-The stub dispatches by prompt shape: chat → grounded answer citing the context files; walkthrough → section body + takeaways; otherwise → briefing JSON. `results.json` records `"model_used": "stub/deterministic-v1"` so it's obvious a run was hermetic.
+The stub dispatches by prompt shape: chat → grounded answer citing the context files; walkthrough → section body + takeaways; otherwise → empty (condense falls back to the offline condenser). `results.json` records `"model_used": "stub/deterministic-v1"` so it's obvious a run was hermetic.
 
 ---
 
@@ -62,16 +61,9 @@ The stub dispatches by prompt shape: chat → grounded answer citing the context
 
 | Check | Agent | Meaning |
 |---|---|---|
-| `overview_contains` | briefing | The project description mentions the right name/purpose |
-| `overview_equals` | briefing | Exact match — used for "not found in repo" assertions |
-| `overview_excludes` | briefing | Injected text is NOT present in output (injection resistance) |
-| `overview_source` | briefing | The overview cites the README as its source |
-| `setup_contains` | briefing / install | Run steps match the actual build config (npm / pip / docker / go / cargo) |
-| `setup_source` | briefing / install | Setup steps cite the real config file |
-| `folder` | briefing | Top-level folder appears in the folder map |
-| `recent_equals` | briefing | No git history → `"not found in repo"`, never invented |
-| `no_unresolved_sources` | briefing | Every cited source resolves to a real repo artifact |
-| `status_not: failed` | briefing / install | The run produced a usable result |
+| `setup_contains` | install | Run steps match the actual build config (npm / pip / docker / go / cargo) |
+| `setup_source` | install | Setup steps cite the real config file |
+| `status_not: failed` | install | The run produced a usable result |
 | `source_contains` | chat | The right file was surfaced for the question |
 | `grounded` | chat | Answer has at least one real source attached |
 | `no_hallucinated` | chat | No cited file is invented / absent from the index |
@@ -96,12 +88,11 @@ The gate **passes** when `passed / total >= threshold` (default 1.0).
 {
   "gate_passed": true,
   "pass_rate": 1.0,
-  "total_cases": 31,
-  "passed": 31,
+  "total_cases": 20,
+  "passed": 20,
   "failed": 0,
   "per_agent": {
-    "briefing":      { "total": 10, "passed": 10 },
-    "chat":          { "total": 10, "passed": 10 },
+    "chat":          { "total":  9, "passed":  9 },
     "tour":          { "total":  5, "passed":  5 },
     "walkthrough":   { "total":  3, "passed":  3 },
     "installation":  { "total":  3, "passed":  3 }
@@ -130,7 +121,7 @@ The `detail` field explains what the agent returned vs. what was expected.
 ## Adding a new test case
 
 1. Open `evals/runner.py`.
-2. Add a new dict to the relevant agent's case list (e.g. `BRIEFING_CASES`):
+2. Add a new dict to the relevant agent's case list (e.g. `RAG_CASES`):
 ```python
 {
     "id": "my_new_case",

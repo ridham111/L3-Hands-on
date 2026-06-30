@@ -58,8 +58,8 @@ The DATA/instruction boundary in system prompts (`<<<REPO_CONTEXT_JSON>>>` marke
 
 ---
 
-### No streaming for briefing/tour/walkthrough
-Long-running generation endpoints (`/v1/briefing`, `/v1/tour`, `/v1/walkthrough`) are polled — the client re-requests until the result is ready. Only `/v1/ask/stream` emits SSE events.
+### No streaming for tour/walkthrough
+Long-running generation endpoints (`/v1/tour`, `/v1/walkthrough`) are polled — the client re-requests until the result is ready. Only `/v1/ask/stream` emits SSE events.
 
 **Future hardening**: Add SSE / WebSocket streaming for all generation endpoints.
 

@@ -46,7 +46,6 @@ def test_ingest_then_ask_is_grounded():
     try:
         ing = ingest_repo(IngestRequest(repo_path=str(repo), namespace="shoptest", rebuild=True))
         assert ing.chunks_indexed >= 3
-        assert ing.starter_questions
         r = ask(AskRequest(namespace="shoptest", question="how is login handled?"))
         assert r.validation_status == "passed"
         assert r.grounded is True
@@ -116,20 +115,6 @@ def test_rrf_merge_prefers_agreement():
     # y appears in both lists -> outranks the single-list winners
     assert merged[0]["id"] == "y"
     assert {m["id"] for m in merged} == {"x", "y", "z"}
-
-
-def test_broad_question_routes_to_briefing():
-    repo = make_repo(CODE_REPO)
-    try:
-        ingest_repo(IngestRequest(repo_path=str(repo), namespace="broadtest", rebuild=True))
-        r = ask(AskRequest(namespace="broadtest", question="what does this project do?"))
-        assert any(s.path == "project-briefing" for s in r.sources)
-        assert r.grounded is True
-        # specific questions don't get the briefing injected
-        r2 = ask(AskRequest(namespace="broadtest", question="how is login handled?"))
-        assert all(s.path != "project-briefing" for s in r2.sources)
-    finally:
-        shutil.rmtree(repo, ignore_errors=True)
 
 
 def test_spec_files_rank_below_implementation():
@@ -580,18 +565,6 @@ def test_namespace_from_clone_url():
     assert _namespace_from_clone_url("https://host/team/sub/some.repo/") == "some.repo"
     assert _namespace_from_clone_url("https://dev.azure.com/org/proj/_git/Repo") == "Repo"
     assert _namespace_from_clone_url("") == ""
-
-
-def test_build_response_tolerates_scalar_fields():
-    # an LLM that returns {"overview": "a string"} (wrong shape) must not crash
-    from onboarding_brain.onboarding import _build_response
-
-    parsed = {"overview": "just a string", "setup_steps": "nope", "recent_work": 123,
-              "key_features": "x", "folder_map": None, "owners": "y", "glossary": "z"}
-    ctx = {"repo_path": "/x", "available_sources": [], "is_git_repo": False, "file_count": 0}
-    resp = _build_response(parsed, ctx, [], "mock", "tr_x", get_settings(), 10)
-    assert resp.overview.answer == ""  # coerced, no AttributeError
-    assert resp.key_features == [] and resp.owners == []
 
 
 def test_sources_strictly_scoped_to_answer():

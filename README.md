@@ -8,8 +8,6 @@ where to start. Cortex fixes that.
 Point it at a project — a folder on your machine, or a git/Bitbucket link — and it reads
 the whole thing so you don't have to. Then it can:
 
-- **Give you a Day-1 briefing** — in plain English: what the project does, how it's laid
-  out, how to run it, what changed recently, and who works on what.
 - **Answer your questions** about the code, and show you the exact files and lines the
   answer came from. If it can't find something, it says so instead of making it up.
 - **Walk you through a guided tour** — starting at the file where the app actually begins,
@@ -46,8 +44,8 @@ Open **http://localhost:8000**, paste a repo folder or a clone link, click **Ing
 and start asking questions.
 
 It answers using **your Claude Pro/Max subscription over OAuth — no billed API key** (see
-[Authentication](#authentication--how-the-claude-login-works) below). Cortex is a pure agent
-built on the Claude Agent SDK.
+[Authentication](#authentication--how-the-claude-login-works) below). Cortex is built on the
+Claude Agent SDK.
 
 ---
 
@@ -106,7 +104,6 @@ If you prefer the command line:
 ```powershell
 .\.venv\Scripts\python.exe -m cli.main ingest --repo C:\path\to\repo -n myrepo   # read a repo
 .\.venv\Scripts\python.exe -m cli.main ask "How is login handled?" -n myrepo     # ask a question
-.\.venv\Scripts\python.exe -m cli.main onboard --repo C:\path\to\repo            # Day-1 briefing
 .\.venv\Scripts\python.exe -m cli.main namespaces                                # list repos you've read
 .\.venv\Scripts\python.exe -m cli.main info                                      # show current settings
 ```
@@ -128,7 +125,7 @@ curl -X POST http://localhost:8000/v1/ingest \
   -d '{"repo_path":"C:/path/to/repo","namespace":"myrepo","rebuild":true}'
 
 # you get back something like:
-# {"namespace":"myrepo","files_indexed":42,"chunks_indexed":318,"briefing_pending":true, ...}
+# {"namespace":"myrepo","files_indexed":42,"chunks_indexed":318,"already_indexed":false, ...}
 
 # 2) Ask a question
 curl -X POST http://localhost:8000/v1/ask \
@@ -149,9 +146,8 @@ The main endpoints:
 | `POST /v1/ask` | Ask a question, get a sourced answer |
 | `GET /v1/tour/{repo}` | Get the guided tour |
 | `POST/GET /v1/walkthrough/{repo}` | Start / fetch the full project walkthrough |
-| `GET /v1/briefing/{repo}` | Get the Day-1 briefing |
 | `GET /v1/gaps/{repo}` | See which files are confusing and worth documenting |
-| `POST /v1/agents/{id}/run` | Run a specific helper (briefing or install-guide) |
+| `POST /v1/agents/{id}/run` | Run a specific helper (install-guide) |
 | `GET /v1/namespaces`, `GET /v1/agents`, `GET /health` | List repos, list helpers, health check |
 
 Want to explore them interactively? The app serves a live API explorer at
@@ -163,7 +159,6 @@ Want to explore them interactively? The app serves a live API explorer at
 
 Cortex is really a few small, focused helpers ("agents") that share the same brain:
 
-- **Briefing** — your Day-1 overview of the project.
 - **Install guide** — the tools and versions you need, pulled from the project's own
   config files.
 - **Chat** (`kt-agent-v1`) — ask anything; a Level-3 AI agent that reasons over 9 tools
@@ -206,9 +201,9 @@ This is the part that matters most for onboarding — wrong answers are worse th
   to set it on a shared server. The app prints a warning at startup to remind you.)
 - **Your secrets stay secret.** API keys and repo access tokens are used in the moment and
   never written to disk or logs.
-- **Where things are stored.** What it learns about a repo (the search index, the briefing,
-  your chat history, any notes you save) is kept locally under `.kt_index/`. Chat history
-  can optionally go to a MongoDB if you configure one.
+- **Where things are stored.** What it learns about a repo (the search index, your chat
+  history, any notes you save) is kept locally under `.kt_index/`. Chat history can
+  optionally go to a MongoDB if you configure one.
 
 ---
 
@@ -224,19 +219,16 @@ Everything is controlled by environment variables, with safe defaults so it just
 | Where chat history lives | `ONBOARDING_CHAT_STORE` | `auto`, `json`, `mongo` | `auto` |
 | API keys | `ONBOARDING_API_KEYS` | comma-separated keys | `dev-local-key` |
 
-### Cortex is a pure agent (Claude Agent SDK)
+### LLM backend (Claude Agent SDK)
 
-Cortex has exactly **one backend: `claude_sdk`**. It runs **inside Anthropic's agent harness**
-([claude-agent-sdk](https://pypi.org/project/claude-agent-sdk/)) — the SDK owns the agentic
-tool-use loop, and Cortex only supplies its 9 code-aware tools as an in-process MCP server,
-locked down so the agent can **only** read the indexed code (no filesystem or shell access).
-This is a deliberate stance: the value is the *agent*, not an LLM-call multiplexer. Every part
-(chat, briefing, install guide, tour, walkthrough) runs on it.
+Cortex runs on the **Claude Agent SDK** ([claude-agent-sdk](https://pypi.org/project/claude-agent-sdk/)).
+The SDK runs the tool-use loop; Cortex provides its 9 code-aware tools as an in-process MCP server,
+restricted to read-only access over the indexed code (no filesystem or shell access). Chat,
+chat, install guide, tour, and walkthrough all use this backend.
 
-It runs on your **Claude Pro/Max subscription over OAuth — no billed API key** — see
-[Authentication](#authentication--how-the-claude-login-works) above for the login flow and the
-`ANTHROPIC_API_KEY` rule. Leave `CLAUDE_SDK_MODEL` blank to use the subscription's default model
-(strongest and, in our A/B testing, the most tool-efficient).
+It authenticates with your **Claude Pro/Max subscription over OAuth** — see
+[Authentication](#authentication--how-the-claude-login-works) above. Leave `CLAUDE_SDK_MODEL`
+blank to use the subscription's default model, or set a specific model id.
 
 ---
 
@@ -245,15 +237,15 @@ It runs on your **Claude Pro/Max subscription over OAuth — no billed API key**
 Two commands tell you everything's healthy:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q          # the test suite (75 tests)
-.\.venv\Scripts\python.exe -m evals.runner       # the quality gate (31 checks)
+.\.venv\Scripts\python.exe -m pytest -q          # the test suite
+.\.venv\Scripts\python.exe -m evals.runner       # the quality gate (20 checks)
 ```
 
 The **quality gate** is how we make sure changes don't quietly break things. It spins up
 tiny throwaway sample repos, runs every helper against them, and checks the results — e.g.
 "did chat find the right file?", "did the tour start at the real entry file?", "were
-made-up sources caught?". It covers every helper (briefing 10, chat 10, tour 5,
-walkthrough 3, install 3) and writes a report to `evals/results.json`.
+made-up sources caught?". It covers every helper (chat 9, tour 5, walkthrough 3,
+install 3) and writes a report to `evals/results.json`.
 
 If any check fails, the command exits with an error — so it can run automatically on every
 code change (it does, via `.github/workflows/ci.yml`) and block anything that regresses.

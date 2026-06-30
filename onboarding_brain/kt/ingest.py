@@ -1,5 +1,4 @@
-"""Ingestion: walk a repo, chunk it, build the vector index, persist it,
-and produce a Day-1 overview + suggested starter questions."""
+"""Ingestion: walk a repo, chunk it, build the vector index, and persist it."""
 from __future__ import annotations
 
 import base64
@@ -15,78 +14,16 @@ from typing import Optional
 
 from .. import AGENT_ID
 from ..config import Settings, get_settings
-from ..contract import IngestRequest, IngestResponse, OnboardingRequest, OnboardingResponse, Sourced, Trace
-from ..onboarding import _check_allowed, generate_briefing, generate_briefing_from_ctx
-from ..repo_reader import gather_repo_context
+from ..contract import IngestRequest, IngestResponse, Trace
+from ..onboarding import _check_allowed
 from ..trace import append_trace, log_event, logger, new_trace_id, timed
 from .chunker import iter_chunks
 from .store import get_store, slugify
 
 _CLONE_TIMEOUT_S = 300  # 5 min max for a git clone
 
-# Track running background briefing jobs: namespace → Thread
-_BRIEFING_JOBS: dict[str, threading.Thread] = {}
-# When each job started (epoch seconds) — used to detect a hung/stale job
-_BRIEFING_STARTED: dict[str, float] = {}
-# Track last briefing error per namespace so the UI can surface it
-_BRIEFING_ERRORS: dict[str, str] = {}
-_BRIEFING_JOBS_LOCK = threading.Lock()
+_RESYNC_LOCK = threading.Lock()
 
-
-def briefing_max_age(settings: Settings) -> float:
-    """Generous upper bound on how long a briefing job should run before it is
-    considered hung (3 parallel calls × per-call timeout × retries, + slack)."""
-    return settings.request_timeout_s * (settings.max_retries + 1) * 3 + 120
-
-
-def _fire_briefing_background(namespace: str, ctx: dict, brief_path: Path, settings: Settings) -> None:
-    """Start a daemon thread that runs the LLM briefing and saves it to disk."""
-    with _BRIEFING_JOBS_LOCK:
-        existing = _BRIEFING_JOBS.get(namespace)
-        if existing and existing.is_alive():
-            return  # already running for this namespace
-        _BRIEFING_ERRORS.pop(namespace, None)  # clear previous error on fresh attempt
-        _BRIEFING_STARTED[namespace] = time.time()
-
-    def _run() -> None:
-        try:
-            briefing = generate_briefing_from_ctx(ctx, settings=settings)
-            if briefing.validation_status != "failed" and briefing.overview.answer:
-                brief_path.parent.mkdir(parents=True, exist_ok=True)
-                brief_path.write_text(briefing.model_dump_json(), encoding="utf-8")
-            elif not briefing.overview.answer:
-                # LLM returned empty/failed result — surface this as an error
-                err = "LLM returned an empty briefing (quota exceeded or model error)"
-                logger.warning("briefing_empty namespace=%s", namespace)
-                with _BRIEFING_JOBS_LOCK:
-                    _BRIEFING_ERRORS[namespace] = err
-        except Exception as exc:
-            err = f"{type(exc).__name__}: {exc}"
-            logger.exception("briefing_failed namespace=%s error=%s", namespace, err)
-            with _BRIEFING_JOBS_LOCK:
-                _BRIEFING_ERRORS[namespace] = err
-        finally:
-            with _BRIEFING_JOBS_LOCK:
-                _BRIEFING_JOBS.pop(namespace, None)
-                _BRIEFING_STARTED.pop(namespace, None)
-
-    t = threading.Thread(target=_run, daemon=True, name=f"briefing-{namespace}")
-    with _BRIEFING_JOBS_LOCK:
-        _BRIEFING_JOBS[namespace] = t
-    t.start()
-
-
-def wait_for_briefing(namespace: str, timeout: float = 30.0) -> bool:
-    """Block until the background briefing job for `namespace` finishes (or the
-    timeout elapses). Returns True if no job is/was running or it completed.
-    Used by the eval runner so briefing-dependent checks are deterministic
-    rather than racing the daemon thread."""
-    with _BRIEFING_JOBS_LOCK:
-        t = _BRIEFING_JOBS.get(namespace)
-    if t is None:
-        return True
-    t.join(timeout)
-    return not t.is_alive()
 
 
 def _build_auth_header(token: str, clone_url: str) -> str | None:
@@ -172,7 +109,7 @@ def resync_namespace(namespace: str, *, clone_token: str = "",
         raise ValueError("cannot re-sync: the original source is unavailable — "
                          "re-ingest this repo from the Clone or Local tab")
 
-    with _BRIEFING_JOBS_LOCK:
+    with _RESYNC_LOCK:
         existing = _RESYNC_JOBS.get(ns)
         if existing and existing.is_alive():
             return {"namespace": ns, "status": "already_resyncing", "mode": mode}
@@ -184,11 +121,11 @@ def resync_namespace(namespace: str, *, clone_token: str = "",
         except Exception:
             logger.exception("resync_failed namespace=%s", ns)
         finally:
-            with _BRIEFING_JOBS_LOCK:
+            with _RESYNC_LOCK:
                 _RESYNC_JOBS.pop(ns, None)
 
     t = threading.Thread(target=_run, daemon=True, name=f"resync-{ns}")
-    with _BRIEFING_JOBS_LOCK:
+    with _RESYNC_LOCK:
         _RESYNC_JOBS[ns] = t
     t.start()
     return {"namespace": ns, "status": "resyncing", "mode": mode}
@@ -244,67 +181,23 @@ def _clone_repo(clone_url: str, token: str = "", *, interactive: bool = True) ->
     return tmp / "repo", tmp
 
 
-_DEFAULT_STARTERS = [
-    "What does this project do?",
-    "What are the main features of this project?",
-    "How do I run it locally?",
-    "Where is the entry point / main file?",
-    "How is authentication handled?",
-    "Where are the API endpoints defined?",
-    "What does the folder structure look like?",
-    "Who should I talk to about this codebase?",
-]
-
-
-def _starter_questions(briefing=None) -> list[str]:
-    if briefing is None:
-        return _DEFAULT_STARTERS[:8]
-    qs = list(_DEFAULT_STARTERS[:4])
-    for f in briefing.folder_map[:3]:
-        qs.append(f"What is in the {f.folder} folder?")
-    qs += _DEFAULT_STARTERS[4:]
-    return qs[:8]
-
-
-def _load_cached_briefing(store, namespace: str) -> Optional[OnboardingResponse]:
-    brief_path = store.ns_dir(namespace) / "briefing.json"
-    if not brief_path.is_file():
-        return None
-    try:
-        b = OnboardingResponse.model_validate_json(brief_path.read_text(encoding="utf-8"))
-        if b.validation_status == "failed" or not b.overview.answer:
-            return None
-        return b
-    except Exception:
-        return None
-
-
 def _cached_ingest_response(store, namespace: str, settings: Settings, trace_id: str) -> IngestResponse:
     """Serve an already-indexed repo from its persisted index WITHOUT cloning —
     the 'track record' that avoids re-cloning a repo we've seen before."""
     meta = _read_ns_meta(store, namespace)
-    briefing = _load_cached_briefing(store, namespace)
     files = int(meta.get("n_files", 0) or 0)
-    # if the briefing isn't ready yet but its first-ingest job is still running,
-    # tell the UI to keep polling; otherwise don't auto-regenerate (use Re-sync)
-    with _BRIEFING_JOBS_LOCK:
-        job_running = namespace in _BRIEFING_JOBS
-    briefing_pending = briefing is None and job_running
     trace = Trace(
         trace_id=trace_id, agent_id=AGENT_ID, model_used=settings.model_used,
-        duration_ms=0, strategy="llm",
+        duration_ms=0, strategy="index",
         repo_path=meta.get("repo_path", ""),
-        is_git_repo=briefing.trace.is_git_repo if briefing else False,
-        files_scanned=files or (briefing.trace.files_scanned if briefing else 0),
+        files_scanned=files,
         grounding={"namespace": namespace, "chunks_indexed": 0, "already_indexed": True},
     )
     log_event("ingest_end", trace_id)
     return IngestResponse(
         namespace=namespace, repo_path=meta.get("repo_path", ""), files_indexed=files,
-        chunks_indexed=0, already_indexed=True, briefing_pending=briefing_pending,
-        overview=briefing.overview if briefing else Sourced(),
-        starter_questions=_starter_questions(briefing),
-        validation_status=briefing.validation_status if briefing else "passed",
+        chunks_indexed=0, already_indexed=True,
+        validation_status="passed",
         trace=trace,
     )
 
@@ -378,20 +271,7 @@ def ingest_repo(request: IngestRequest, *, settings: Optional[Settings] = None) 
                                             "clone_url": request.clone_url or "",
                                             "indexed_at": time.time()})
             chunks_indexed = len(chunks)
-            # a rebuild may still have a valid cached briefing; reuse it if so
-            brief_path = store.ns_dir(namespace) / "briefing.json"
-            briefing = _load_cached_briefing(store, namespace)
-
-        # Gather repo context while the files are still present (fast — just reads
-        # files and runs git), so we can clean up the tmpdir immediately after.
-        briefing_pending = False
-        if briefing is None:
-            ctx = gather_repo_context(str(repo))
-            if tmpdir:
-                shutil.rmtree(tmpdir, ignore_errors=True)
-                tmpdir = None
-            _fire_briefing_background(namespace, ctx, brief_path, settings)
-            briefing_pending = True
+        is_git_repo = (repo / ".git").exists()
     finally:
         # guarantee the temp clone dir is removed on EVERY exit path
         if tmpdir:
@@ -399,10 +279,10 @@ def ingest_repo(request: IngestRequest, *, settings: Optional[Settings] = None) 
 
     trace = Trace(
         trace_id=trace_id, agent_id=AGENT_ID, model_used=settings.model_used,
-        duration_ms=t["ms"], strategy="llm",
+        duration_ms=t["ms"], strategy="index",
         repo_path=str(repo),
-        is_git_repo=briefing.trace.is_git_repo if briefing else False,
-        files_scanned=files or (briefing.trace.files_scanned if briefing else 0),
+        is_git_repo=is_git_repo,
+        files_scanned=files,
         grounding={"namespace": namespace, "chunks_indexed": chunks_indexed, "already_indexed": False},
     )
     append_trace({"trace_id": trace_id, "event": "ingest", "namespace": namespace,
@@ -413,9 +293,6 @@ def ingest_repo(request: IngestRequest, *, settings: Optional[Settings] = None) 
     return IngestResponse(
         namespace=namespace, repo_path=str(repo), files_indexed=files,
         chunks_indexed=chunks_indexed, already_indexed=False,
-        briefing_pending=briefing_pending,
-        overview=briefing.overview if briefing else Sourced(),
-        starter_questions=_starter_questions(briefing),
-        validation_status=briefing.validation_status if briefing else "passed",
+        validation_status="passed",
         trace=trace,
     )

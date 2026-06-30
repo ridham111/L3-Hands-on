@@ -5,6 +5,9 @@ __pycache__/
 trace.json
 evals/results.json
 evals/eval_trace.jsonl
+evals/.cache/
+evals/ragas_results.json
+evals/repoqa_results.json
 .pytest_cache/
 .kt_index/
 *.log

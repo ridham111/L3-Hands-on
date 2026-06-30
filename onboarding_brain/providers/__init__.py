@@ -1,9 +1,8 @@
 """LLM provider layer — single backend: the Claude Agent SDK.
 
-This project is a PURE AGENT. There is exactly one backend (`claude_sdk`): the
-agent harness from `claude-agent-sdk`, which owns the tool-use loop. The app only
-supplies the 9 code-aware tools as an in-process MCP server. There is deliberately
-no alternative-LLM multiplexing or fallback chain — the value is the agent itself.
+There is one backend (`claude_sdk`): the agent runtime from `claude-agent-sdk`,
+which runs the tool-use loop. The app supplies the 9 code-aware tools as an
+in-process MCP server.
 """
 from __future__ import annotations
 

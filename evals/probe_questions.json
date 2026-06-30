@@ -1,0 +1,12 @@
+{
+  "_doc": "Probe questions for the RAGAS-style scorecard. These are NOT a gold set — there are no 'expected files'. RAGAS metrics are reference-free: a judge scores each answer for faithfulness/relevancy against the contexts the agent actually retrieved. The last entry is a negative control (the feature doesn't exist) to score honest abstention.",
+  "namespace": "mtn-data-suite",
+  "questions": [
+    {"id": "auth_overview", "q": "How is authentication handled and where is the access token stored?"},
+    {"id": "route_protection", "q": "How are routes protected from unauthenticated users?"},
+    {"id": "token_refresh", "q": "How does the app handle token refresh when the access token expires?"},
+    {"id": "attach_auth_header", "q": "How does the app attach the auth token to outgoing HTTP requests?"},
+    {"id": "http_services", "q": "How does the app communicate with the backend REST API?"},
+    {"id": "not_found_control", "q": "Where is the director agent feature implemented?", "negative": true}
+  ]
+}

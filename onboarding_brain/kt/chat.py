@@ -338,12 +338,10 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
     if not provider:
         provider = get_provider(settings)
 
-    # ── Pure agent path (production) ──────────────────────────────────────────
-    # The only backend is the Claude Agent SDK: the agent harness owns the loop
-    # and our 9 tools run as an in-process MCP server. Every real request goes
-    # here. (The RAG pipeline below is unreachable in production — no backend
-    # lacks tool use — and survives ONLY as the deterministic offline test
-    # harness, driven by the StubProvider in evals/tests.)
+    # ── Agent path (production) ───────────────────────────────────────────────
+    # The Claude Agent SDK runs the loop; our 9 tools run as an in-process MCP
+    # server. Every request goes here. (The RAG pipeline below is reached only by
+    # the deterministic StubProvider used in the offline tests/eval gate.)
     from ..providers.claude_agent_sdk_provider import as_sdk_provider
     sdk_provider = as_sdk_provider(provider)
     if sdk_provider is not None:

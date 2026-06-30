@@ -51,7 +51,23 @@
       "Bash(AB_LIMIT=1 PYTHONPATH=\"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" PYTHONUTF8=1 ./.venv/Scripts/python.exe \"C:/Users/RIDHAM~1/AppData/Local/Temp/claude/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/f391c640-d027-4c5c-81aa-37ef5885fbb5/scratchpad/ab_compare.py\")",
       "Bash(PYTHONPATH=\"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" PYTHONUTF8=1 ./.venv/Scripts/python.exe \"C:/Users/RIDHAM~1/AppData/Local/Temp/claude/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/f391c640-d027-4c5c-81aa-37ef5885fbb5/scratchpad/ab_compare.py\")",
       "Bash(PYTHONUTF8=1 ./.venv/Scripts/python.exe -c ' *)",
-      "Bash(./.venv/Scripts/python.exe -m evals.runner)"
+      "Bash(./.venv/Scripts/python.exe -m evals.runner)",
+      "Bash(AB_MODELS=haiku AB_JUDGE_MODEL=haiku AB_LIMIT=2 PYTHONUTF8=1 ./.venv/Scripts/python.exe -m evals.model_eval)",
+      "Bash(ls \"C:/Users/RidhamPansuriya/.claude/projects/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/memory\")",
+      "Bash(AB_MODELS=haiku AB_JUDGE_MODEL=haiku AB_LIMIT=2 PYTHONUTF8=1 ./.venv/Scripts/python.exe -m evals.ragas_eval)",
+      "Bash(AB_MODELS=haiku AB_JUDGE_MODEL=sonnet AB_LIMIT=2 PYTHONUTF8=1 ./.venv/Scripts/python.exe -m evals.ragas_eval)",
+      "Bash(AB_MODELS=haiku,sonnet,opus AB_JUDGE_MODEL=sonnet PYTHONUTF8=1 ./.venv/Scripts/python.exe -m evals.ragas_eval)",
+      "Bash(REPOQA_LANGS=typescript,python REPOQA_REPOS=1 REPOQA_NEEDLES=5 AB_MODELS=haiku,sonnet,opus PYTHONUTF8=1 ./.venv/Scripts/python.exe -m evals.repoqa_eval)",
+      "Bash(./.venv/Scripts/python.exe -c \"import py_compile; [py_compile.compile\\(f, doraise=True\\) for f in ['onboarding_brain/kt/agent_sdk.py','evals/repoqa_eval.py']]; print\\('compile OK'\\)\")",
+      "Bash(git check-ignore *)",
+      "Bash(./.venv/Scripts/python.exe -c \"import importlib; importlib.import_module\\('api.server'\\); importlib.import_module\\('cli.main'\\); print\\('server + cli import OK'\\)\")",
+      "Bash(grep -rniE \"briefing|day.?1|day-one|onboard --|/v1/briefing|generate_briefing|starter_question|overview agent\" *.md docs/*.md)",
+      "Bash(grep -rniE \"groq|openrouter|fallback.?backend|model-agnostic|multi-backend|claude auth\\\\b\" *.md docs/*.md)",
+      "Bash(grep -rniE \"pure agent|deliberate|multiplexer|the value is the agent\" *.md docs/*.md)",
+      "Bash(grep -rniE \"75 test|31 check|six \\(specialised|specialized\\)|five agents|10 cases|briefing 10\" *.md docs/*.md)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\RidhamPansuriya\\.claude\\projects\\c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on"
     ]
   }
 }
