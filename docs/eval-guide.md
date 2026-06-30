@@ -49,10 +49,10 @@ Each case builds a **throwaway fixture repo in memory** — no real git clone, n
 
 A real LLM phrases answers differently every run, so exact-match checks can only pass against a deterministic generator. The gate uses a **stub provider** (`evals/stub_provider.py`) — a test double that produces grounded, repeatable output purely from the repo context (it only cites files that exist and says "not found in repo" when data is absent).
 
-Crucially, the stub is **not a user-facing backend**. User backends stay exactly `claude | groq | openrouter`. The stub enters only via `install_stub()`, which monkeypatches `get_provider` in the agent-flow modules at runtime:
+Crucially, the stub is **not a user-facing backend**. The one real backend is `claude_sdk` (the Claude Agent SDK). The stub enters only via `install_stub()`, which monkeypatches `get_provider` in the agent-flow modules at runtime:
 
 - `evals/runner.py` calls `install_stub(settings)` — the whole gate runs on it.
-- `tests/conftest.py` calls `install_stub(settings, patch_source=False)` — the pytest suite runs on it too, but `patch_source=False` leaves the real `providers.get_provider` intact so the provider-selection tests (FallbackProvider / OpenRouterProvider) still verify the real factory.
+- `tests/conftest.py` calls `install_stub(settings, patch_source=False)` — the pytest suite runs on it too, but `patch_source=False` leaves the real `providers.get_provider` intact for tests that inspect the real factory. Because the stub is not the SDK provider, chat falls through to the deterministic RAG pipeline (the offline test harness) rather than the live SDK agent loop.
 
 The stub dispatches by prompt shape: chat → grounded answer citing the context files; walkthrough → section body + takeaways; otherwise → briefing JSON. `results.json` records `"model_used": "stub/deterministic-v1"` so it's obvious a run was hermetic.
 

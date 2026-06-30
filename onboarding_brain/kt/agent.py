@@ -92,9 +92,12 @@ RULES:
     must come from code you read — never from general knowledge.
   • Be concrete: name functions, classes, variables, exact file paths.
   • Cite sources inline: "In `src/main.ts`..." not vague statements.
-  • If the codebase genuinely contains nothing relevant after thorough search,
-    say so honestly: "I couldn't find this in the indexed code." and briefly
-    describe what you searched for.
+  • If the codebase genuinely contains nothing relevant after a thorough search,
+    you MUST BEGIN your reply with this exact line, on its own:
+        I couldn't find this in the indexed code.
+    Then, below it, briefly say what you searched for and (optionally) suggest
+    what the user might mean. Do NOT cite files as if they were evidence for a
+    thing that isn't there — a "not found" answer has no sources.
 
 GENERAL NOTE — separating your knowledge from the repo's:
   • Keep the main answer strictly grounded in the code you read.
@@ -185,16 +188,27 @@ def assemble_agent_response(
     `used_paths` / `call_log` into sources, wiring, trace, and chat-history. Kept in
     this module because it owns the agent's shared constants and tool metadata.
     """
-    is_not_found = final_answer.lower().startswith("i couldn't find")
-    grounded = bool(executor.used_paths) or is_not_found
+    is_not_found = _looks_like_not_found(final_answer)
 
-    # Don't surface sources/wiring for not-found answers: the agent scanned
-    # files while searching but none are relevant — showing them misleads.
-    sources = [] if is_not_found else _sources_from_executor(executor, store, namespace)
+    # Sources = files the answer actually CITES (intersected with what the agent
+    # read), not every file a search happened to surface. This is what makes the
+    # "verified sources" honest:
+    #   • not-found answer  -> no sources, ungrounded (don't imply we found it)
+    #   • normal answer     -> only the files the answer names
+    #   • answer cites none -> fall back to browsed files (legacy behaviour)
+    if is_not_found:
+        sources: list[Source] = []
+        grounded = False
+    else:
+        cited = _cited_paths(final_answer, executor.used_paths)
+        sources = _sources_from_executor(executor, store, namespace,
+                                         only=cited if cited else None)
+        grounded = bool(sources)
 
+    used_for_wiring = {s.path for s in sources}
     wiring = None
-    if not is_not_found and executor.used_paths:
-        real_paths = [p for p in executor.used_paths if p not in _SKIP_PATHS]
+    if not is_not_found and used_for_wiring:
+        real_paths = [p for p in used_for_wiring if p not in _SKIP_PATHS]
         if real_paths:
             try:
                 from .wiring import build_wiring
@@ -256,10 +270,55 @@ def assemble_agent_response(
         trace=trace,
     )
 
-def _sources_from_executor(executor: ToolExecutor, store, namespace: str) -> list[Source]:
-    """Build Source list from every file the agent accessed via tools."""
+# Phrases that signal the agent concluded the thing doesn't exist in the repo.
+# Anchored to the answer's opening so a passing "there is no X, instead Y" mid-
+# answer doesn't trip it. Primary detection is the NOT_FOUND sentinel (the system
+# prompt asks the agent to lead with it); this is the resilient fallback for when
+# the model phrases the negative in its own words.
+_REPO = r"(?:code\s?base|repo(?:sitory)?|project|app(?:lication)?|source\s+code|code)"
+_NOT_FOUND_RE = re.compile(
+    r"i\s+(?:couldn'?t|could\s+not|did\s*n'?t|was\s+un(?:able)?\s*to)\s+find"
+    r"|there\s+(?:is|are|'s)\s+no\b[^.]{0,90}?\banywhere\b"
+    r"|there\s+(?:is|are|'s)\s+no\b[^.]{0,90}?\bin\s+(?:this|the|the\s+entire)\s+" + _REPO + r"\b"
+    r"|\b(?:does|do)\s*n'?t\s+exist\b"
+    r"|\b(?:does|do)\s*n'?t\s+appear\b[^.]{0,40}?\b(?:anywhere|in\s+(?:this|the)\s+" + _REPO + r")\b"
+    r"|\bno\s+(?:such|concept\s+of|notion\s+of|mention\s+of|trace\s+of)\b"
+    r"|\b(?:isn'?t|aren'?t)\s+(?:a\s+thing|anywhere)\b"
+    r"|\bnot\s+a\s+thing\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_not_found(answer: str) -> bool:
+    """True if the answer is essentially 'this isn't in the repo'."""
+    head = (answer or "").strip()[:300]
+    if head.lower().startswith("i couldn't find"):
+        return True
+    return bool(_NOT_FOUND_RE.search(head))
+
+
+def _cited_paths(answer: str, candidates: set[str]) -> set[str]:
+    """Of the files the agent browsed, return only those it actually names in the
+    answer. Stops 'search noise' (files a query surfaced but the answer never uses)
+    from being presented as verified sources."""
+    text = (answer or "").lower()
+    hits = set()
+    for p in candidates:
+        pl = p.lower()
+        base = pl.rsplit("/", 1)[-1]
+        if pl in text or (base and base in text):
+            hits.add(p)
+    return hits
+
+
+def _sources_from_executor(executor: ToolExecutor, store, namespace: str,
+                           only: set[str] | None = None) -> list[Source]:
+    """Build Source list from the files the agent accessed via tools.
+
+    `only` restricts to a subset (e.g. just the files the answer actually cited)."""
+    paths = executor.used_paths if only is None else (executor.used_paths & only)
     sources = []
-    for path in sorted(executor.used_paths):
+    for path in sorted(paths):
         if path in _SKIP_PATHS:
             continue
         chunk = store.first_chunk(namespace, path)

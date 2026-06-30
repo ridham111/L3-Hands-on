@@ -28,12 +28,15 @@ invents file names, features, or answers.
 
 ## Get it running
 
-You need Python. Then:
+You need **Python** and the **Claude Code CLI** (for the one-time login). Then:
 
 ```powershell
 cd onboarding-brain
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# One-time: log in with your Claude Pro/Max subscription (see "Authentication" below)
+claude            # opens a browser; sign in; credentials are saved to ~/.claude
 
 # Start the app (web page + API)
 .\.venv\Scripts\python.exe -m uvicorn api.server:app --port 8000
@@ -42,8 +45,57 @@ python -m venv .venv
 Open **http://localhost:8000**, paste a repo folder or a clone link, click **Ingest**,
 and start asking questions.
 
-It answers using **your Claude Pro/Max subscription over OAuth — no billed API key.** Cortex is
-a pure agent built on the Claude Agent SDK (see *Settings* below for the one-time login).
+It answers using **your Claude Pro/Max subscription over OAuth — no billed API key** (see
+[Authentication](#authentication--how-the-claude-login-works) below). Cortex is a pure agent
+built on the Claude Agent SDK.
+
+---
+
+## Authentication — how the Claude login works
+
+Cortex talks to Claude through the **Claude Agent SDK**, which authenticates with **your Claude
+Pro/Max subscription over OAuth**. There is **no billed API key** and Cortex never sees your
+password — it rides on the same login the `claude` CLI uses.
+
+**How the login flows (one time):**
+
+```
+You run `claude` (or `claude setup-token`)
+        │  browser opens → you approve with your Claude account
+        ▼
+An OAuth token is saved to  ~/.claude/.credentials.json   (by Claude Code, not by Cortex)
+        │
+        ▼
+The Agent SDK spawns the bundled Claude Code CLI, which reads that token
+        │
+        ▼
+Cortex's requests run on YOUR subscription quota — no API key, no per-call billing
+```
+
+**Two ways to log in — pick one:**
+
+| Method | Command | Best for |
+|---|---|---|
+| Interactive | `claude` → sign in in the browser | your own machine (creds saved to `~/.claude`) |
+| Long-lived token | `claude setup-token` → copy the 1-year token into `CLAUDE_CODE_OAUTH_TOKEN` | servers / CI (no browser available) |
+
+**The one rule that matters:** make sure **`ANTHROPIC_API_KEY` is _unset_**. Credentials are
+chosen in this order, first match wins:
+
+1. `ANTHROPIC_API_KEY`  ← if set, it **wins and bills the metered API** — so leave it unset
+2. `CLAUDE_CODE_OAUTH_TOKEN`  ← the `setup-token` token, if you used that method
+3. **Subscription login from `~/.claude/.credentials.json`**  ← the normal path
+
+As a safeguard, Cortex **refuses to start** if `ANTHROPIC_API_KEY` is set, unless you explicitly
+opt in with `ONBOARDING_CLAUDE_SDK_ALLOW_API_KEY=1`. To verify your login any time:
+
+```powershell
+claude --version          # CLI present?
+# then start Cortex; the first answer confirms the subscription auth works
+```
+
+> **Anthropic policy:** use **your own** subscription token in your own deployment. Letting *end
+> users* sign in with *their* claude.ai accounts is not permitted — keep this single-operator.
 
 ---
 
@@ -181,22 +233,10 @@ locked down so the agent can **only** read the indexed code (no filesystem or sh
 This is a deliberate stance: the value is the *agent*, not an LLM-call multiplexer. Every part
 (chat, briefing, install guide, tour, walkthrough) runs on it.
 
-It runs on your **Claude Pro/Max subscription over OAuth — no billed API key.** One-time setup,
-pick one:
-
-```powershell
-claude setup-token        # prints a 1-year token -> set CLAUDE_CODE_OAUTH_TOKEN
-# ...or just log in once on this machine:
-claude                    # interactive login; creds stored in ~/.claude
-```
-
-**Important:** make sure `ANTHROPIC_API_KEY` is *unset* — if present it takes precedence over
-OAuth and bills the API. Cortex refuses to start with a key set unless you opt in via
-`ONBOARDING_CLAUDE_SDK_ALLOW_API_KEY=1`. Leave `CLAUDE_SDK_MODEL` blank to use the subscription's
-default model (strongest and, in our A/B testing, the most tool-efficient).
-
-> Note (Anthropic policy): use **your own** subscription token in your own deployment. Letting
-> *end users* sign in with *their* claude.ai accounts is not permitted — keep this single-operator.
+It runs on your **Claude Pro/Max subscription over OAuth — no billed API key** — see
+[Authentication](#authentication--how-the-claude-login-works) above for the login flow and the
+`ANTHROPIC_API_KEY` rule. Leave `CLAUDE_SDK_MODEL` blank to use the subscription's default model
+(strongest and, in our A/B testing, the most tool-efficient).
 
 ---
 

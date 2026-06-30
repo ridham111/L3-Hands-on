@@ -61,7 +61,7 @@ User question
      │
      ▼
 ┌──────────────────────────────────────────────────┐
-│  LLM (Claude / Groq / OpenRouter)                │
+│  LLM (Claude, via the Claude Agent SDK)          │
 │                                                   │
 │  1. Analyse the question                          │
 │  2. Choose a tool from 9 available tools          │

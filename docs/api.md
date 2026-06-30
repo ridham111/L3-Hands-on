@@ -106,11 +106,13 @@ Ask a question about an indexed repository.
   "namespace": "myrepo",
   "question": "how does auth work?",
   "history": [],
-  "top_k": 8,
-  "backend": null,
-  "claude_model": null
+  "top_k": 8
 }
 ```
+
+> `backend` and `claude_model` may still be accepted in the request body for
+> backward compatibility but are **ignored** — there is one backend, the Claude
+> Agent SDK (see [architecture](architecture.md#llm-backend--pure-claude-agent-sdk)).
 
 **Response**
 ```json
