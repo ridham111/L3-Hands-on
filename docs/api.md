@@ -72,7 +72,6 @@ Or clone from a URL:
   "files_indexed": 42,
   "chunks_indexed": 318,
   "already_indexed": false,
-  "briefing_pending": true,
   "trace": { "trace_id": "tr_abc123", "duration_ms": 1240, ... }
 }
 ```
@@ -163,19 +162,6 @@ curl -N -X POST http://localhost:8000/v1/ask/stream \
 
 ---
 
-## Briefing
-
-### `GET /v1/briefing/{namespace}`
-Get the Day-1 briefing for an indexed repo. Generated in the background after ingest.
-
-```bash
-curl -H "Authorization: Bearer dev-local-key" \
-  http://localhost:8000/v1/briefing/myrepo
-```
-
-**Response includes**: `overview`, `key_features`, `folder_map`, `setup_steps`, `recent_work`, `owners`, `glossary`, `trace`.
-
----
 
 ## Tour
 
@@ -254,7 +240,7 @@ Clear conversation history for a namespace.
 ### `POST /v1/agents/{agent_id}/run`
 Run a named agent directly.
 
-Available `agent_id` values: `briefing`, `installation-guide`
+Available `agent_id` values: `installation-guide`
 
 ```bash
 curl -X POST http://localhost:8000/v1/agents/installation-guide/run \

@@ -1136,21 +1136,19 @@ async function selectNamespace(ns){
   $('#stream').innerHTML = emptyState(ns, 'Restoring session…');
   const restored = await restoreChatLog(ns);
   if (!restored) $('#stream').innerHTML = emptyState(ns, 'Index ready — ask anything below.', true);
-  try {
-    const r = await api('/v1/briefing/' + encodeURIComponent(ns));
-    if (r.status === 'ready') showStarters(r);
-  } catch (e){ /* starters unavailable — chat still works */ }
+  showStarters();
 }
 
 function showStarters(d){
   const st = $('#starters'); st.innerHTML = '';
-  (d.starter_questions || []).forEach(q => {
+  const qs = (d && d.starter_questions && d.starter_questions.length) ? d.starter_questions : Q_STARTERS;
+  qs.forEach(q => {
     const b = document.createElement('button');
     b.className = 'pill'; b.textContent = q;
     b.onclick = () => { $('#q').value = q; send(); };
     st.appendChild(b);
   });
-  $('#startSec').style.display = (d.starter_questions || []).length ? '' : 'none';
+  $('#startSec').style.display = qs.length ? '' : 'none';
 }
 
 

@@ -163,8 +163,11 @@ def agent_ask_sdk(
         async for msg in query(prompt=user_content, options=options):
             if isinstance(msg, AssistantMessage):
                 if msg.error:
+                    # e.g. rate_limit / billing_error. Record and stop cleanly —
+                    # breaking lets the SDK's async generator close normally
+                    # (raising here crashes its aclose with "already running").
                     errors.append(f"sdk_error:{msg.error}")
-                    raise RuntimeError(f"claude_sdk error: {msg.error}")
+                    break
                 has_tool = any(isinstance(b, ToolUseBlock) for b in msg.content)
                 if has_tool:
                     turns += 1

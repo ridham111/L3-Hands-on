@@ -30,10 +30,9 @@ def _float(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class Settings:
-    # Single backend by design: this is a PURE AGENT built on the Claude Agent SDK
-    # (claude-agent-sdk). The SDK owns the tool-use loop; the app only provides the
-    # 9 code-aware tools as an in-process MCP server. There is no alternative LLM
-    # backend — the value is the agent, not an LLM-call multiplexer.
+    # The only backend. Cortex runs on the Claude Agent SDK (claude-agent-sdk): the
+    # SDK runs the tool-use loop and the app provides the 9 code-aware tools as an
+    # in-process MCP server.
     backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_BACKEND", "claude_sdk").lower())
 
     # --- Claude Agent SDK backend (the only backend) ---

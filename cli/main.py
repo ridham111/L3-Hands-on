@@ -1,7 +1,7 @@
 """Onboarding Brain CLI.
 
-    python -m cli.main onboard --repo .
-    python -m cli.main onboard --repo C:\\path\\to\\repo --pretty
+    python -m cli.main ingest --repo . -n myrepo
+    python -m cli.main ask "How is login handled?" -n myrepo
     python -m cli.main info
 """
 from __future__ import annotations
@@ -22,26 +22,8 @@ for _stream in (sys.stdout, sys.stderr):
 
 from onboarding_brain import AGENT_ID, __version__
 from onboarding_brain.config import get_settings
-from onboarding_brain.contract import OnboardingRequest
-from onboarding_brain.onboarding import RepoAccessError, generate_briefing
 
-app = typer.Typer(add_completion=False, help="Onboarding Brain — brief a new dev on any local repo")
-
-
-@app.command()
-def onboard(
-    repo: Path = typer.Option(Path("."), "--repo", "-r", help="Path to a local repository"),
-    pretty: bool = typer.Option(True, help="Pretty-print JSON"),
-):
-    """Read a repo and print a beginner-friendly briefing as JSON."""
-    settings = get_settings()
-    try:
-        resp = generate_briefing(OnboardingRequest(repo_path=str(repo)), settings=settings)
-    except RepoAccessError as exc:
-        typer.echo(json.dumps({"error": "repo_access", "detail": str(exc)}), err=True)
-        raise typer.Exit(code=2)
-    typer.echo(json.dumps(resp.model_dump(), indent=2 if pretty else None, ensure_ascii=False, default=str))
-    raise typer.Exit(code=0 if resp.validation_status != "failed" else 1)
+app = typer.Typer(add_completion=False, help="Onboarding Brain — index any local repo and ask grounded questions")
 
 
 @app.command()

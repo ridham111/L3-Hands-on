@@ -1,13 +1,11 @@
 """Agent registry — the sub-agent system.
 
 The same codebase brain (index + retrieval + grounding + provider layer) powers
-many specialized agents. Each agent is a small spec: an id, metadata, and a
-`run` handler. Add a new agent = add one entry here. The API lists the registry
-and dispatches to the matching handler, so new agents need no new endpoints.
+specialized agents. Each agent is a small spec: an id, metadata, and a `run`
+handler. The API lists the registry and dispatches to the matching handler, so new
+agents need no new endpoints.
 
-Today: the onboarding/KT briefing and an installation guide. The pattern scales
-to code-review, bug-triage, test-writing, etc. — each reusing the shared
-repo intelligence.
+Today: an installation guide. The pattern scales to code-review, bug-triage, etc.
 """
 from __future__ import annotations
 
@@ -16,21 +14,24 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from .config import Settings, get_settings
-from .contract import OnboardingRequest
-from .onboarding import generate_briefing
+from .onboarding import _check_allowed
+from .repo_reader import gather_repo_context
 
+# Deterministic setup steps keyed by the config file present in the repo.
+_SETUP_RULES = [
+    ("angular.json", ["Install dependencies: npm install", "Run locally: npx ng serve (or npm start)"]),
+    ("package.json", ["Install dependencies: npm install", "Start the app: npm start (see package.json scripts)"]),
+    ("requirements.txt", ["Create a virtualenv", "Install dependencies: pip install -r requirements.txt"]),
+    ("pyproject.toml", ["Install the package: pip install . (or poetry install)"]),
+    ("docker-compose.yml", ["Start everything: docker compose up"]),
+    ("dockerfile", ["Build the image: docker build -t app .", "Run it: docker run app"]),
+    ("makefile", ["Run the documented make target: make (see Makefile)"]),
+    ("go.mod", ["Build: go build ./...", "Run: go run ."]),
+    ("cargo.toml", ["Build & run: cargo run"]),
+    ("pom.xml", ["Build: mvn install", "Run: mvn spring-boot:run (or per pom.xml)"]),
+]
 
-@dataclass(frozen=True)
-class AgentSpec:
-    id: str
-    name: str
-    category: str
-    description: str
-    run: Callable[[dict, Settings], dict]
-
-
-# --- prerequisites a newcomer needs, inferred from the stack the briefing found.
-# Deterministic + offline: maps a detected framework/tool to its real toolchain.
+# Toolchain prerequisites a newcomer must install first, by detected stack signal.
 _PREREQ = [
     (r"\bangular\b", "Node.js 18 LTS and npm (Angular CLI: `npm i -g @angular/cli`)"),
     (r"\breact|next\b", "Node.js 18+ and npm or yarn"),
@@ -44,47 +45,59 @@ _PREREQ = [
 ]
 
 
+@dataclass(frozen=True)
+class AgentSpec:
+    id: str
+    name: str
+    category: str
+    description: str
+    run: Callable[[dict, Settings], dict]
+
+
 def _installation_run(req: dict, settings: Settings) -> dict:
-    """Reuse the grounded briefing (setup steps come straight from real config
-    files), then add the toolchain prerequisites a newcomer must install first —
-    the gap a bare 'npm install' list leaves out."""
-    brief = generate_briefing(OnboardingRequest(repo_path=req["repo_path"]), settings=settings)
-    steps = brief.setup_steps.steps
-    sources = brief.setup_steps.sources
-    # scan the briefing's own grounded text for stack signals
-    hay = " ".join([brief.overview.answer, " ".join(steps),
-                    " ".join(g.term + " " + g.meaning for g in brief.glossary)]).lower()
+    """Setup steps + toolchain prerequisites, derived directly from the repo's own
+    config files (package.json, requirements.txt, Dockerfile, …) — no LLM call."""
+    repo_path = req["repo_path"]
+    _check_allowed(repo_path, settings)
+    ctx = gather_repo_context(repo_path)
+    if ctx.get("error"):
+        raise ValueError(ctx["error"])
+
+    configs = ctx.get("config_files") or []
+    config_names = {(c.get("file") or "").rsplit("/", 1)[-1].lower() for c in configs}
+    readme = (ctx.get("readme") or {}).get("content", "") or ""
+    # scan config contents + README + the config FILE NAMES (an empty angular.json
+    # still signals Angular) for stack signals
+    blob = (" ".join((c.get("content") or "") for c in configs) + " " + readme
+            + " " + " ".join(config_names)).lower()
+
+    steps, sources = [], []
+    for fname, fsteps in _SETUP_RULES:
+        if fname in config_names:
+            steps.extend(fsteps)
+            sources.append(fname)
+
     seen, prereq = set(), []
     for pat, need in _PREREQ:
-        if re.search(pat, hay) and need not in seen:
+        if re.search(pat, blob) and need not in seen:
             seen.add(need)
             prereq.append(need)
     if not prereq:
         prereq = ["Check the README/config files for the required runtime and version."]
+
     return {
         "agent_id": "installation-guide",
         "name": "Installation Guide",
-        "repo_path": brief.trace.repo_path,
+        "repo_path": ctx.get("repo_path", repo_path),
         "prerequisites": prereq,
         "setup_steps": steps or ["not found in repo"],
         "sources": sources,
-        "overview": brief.overview.model_dump(),
-        "validation_status": brief.validation_status,
-        "trace": brief.trace.model_dump(),
+        "validation_status": "passed",
     }
-
-
-def _onboarding_run(req: dict, settings: Settings) -> dict:
-    return generate_briefing(
-        OnboardingRequest(repo_path=req["repo_path"]), settings=settings
-    ).model_dump(mode="json")
 
 
 AGENTS: dict[str, AgentSpec] = {
     s.id: s for s in [
-        AgentSpec("onboarding-brain", "Onboarding Brain", "Enablement",
-                  "Grounded Day-1 briefing for a repo: what it does, layout, run steps, owners.",
-                  _onboarding_run),
         AgentSpec("installation-guide", "Installation Guide", "Enablement",
                   "Exact local-setup steps from the real config files, plus the toolchain "
                   "prerequisites (runtimes + versions) you must install first.",

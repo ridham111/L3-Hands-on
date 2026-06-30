@@ -26,12 +26,11 @@ from starlette.concurrency import run_in_threadpool
 
 from onboarding_brain import AGENT_ID, __version__
 from onboarding_brain.config import get_settings
-from onboarding_brain.contract import AnnotateRequest, AskRequest, IngestRequest, OnboardingRequest
+from onboarding_brain.contract import AnnotateRequest, AskRequest, IngestRequest
 from onboarding_brain.kt.chat import ask as kt_ask
 from onboarding_brain.kt.chat import clear_chat_history, load_chat_history
-from onboarding_brain.kt.ingest import _BRIEFING_ERRORS, _BRIEFING_JOBS, _BRIEFING_JOBS_LOCK, ingest_repo
+from onboarding_brain.kt.ingest import ingest_repo
 from onboarding_brain.kt.store import get_store, slugify
-from onboarding_brain.onboarding import RepoAccessError, generate_briefing
 from onboarding_brain.trace import logger
 
 app = FastAPI(title="Cortex — Codebase Intelligence", version=__version__)
@@ -95,7 +94,7 @@ async def _warn_insecure_defaults() -> None:
         logger.warning("AUTH using the default 'dev-local-key' — change ONBOARDING_API_KEYS for any shared/remote use.",
                        extra={"event": "insecure_default"})
     if not s.allowed_roots:
-        logger.warning("FS UNRESTRICTED: ONBOARDING_ALLOWED_ROOTS is empty — any local path can be ingested/briefed. "
+        logger.warning("FS UNRESTRICTED: ONBOARDING_ALLOWED_ROOTS is empty — any local path can be ingested. "
                        "Set it to confine the agents (least privilege) on a shared host.",
                        extra={"event": "insecure_default"})
 
@@ -126,13 +125,21 @@ async def list_agents() -> dict[str, Any]:
 async def run_agent(agent_id: str, request: Request, _: str = Depends(require_auth)):
     from onboarding_brain.agents import run_agent as _run
     settings = get_settings()
-    model = _parse_body(await request.body(), OnboardingRequest, settings.max_request_bytes)
+    raw = await request.body()
+    if len(raw) > settings.max_request_bytes:
+        raise HTTPException(status_code=413, detail="request_too_large")
     try:
-        # threadpool: repo scan + LLM call are blocking; keep the event loop free
-        resp = await run_in_threadpool(_run, agent_id, model.model_dump(), settings=settings)
+        body = json.loads(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"invalid_request: {exc}")
+    if not isinstance(body, dict) or not body.get("repo_path"):
+        raise HTTPException(status_code=422, detail="invalid_request: repo_path required")
+    try:
+        # threadpool: repo scan is blocking; keep the event loop free
+        resp = await run_in_threadpool(_run, agent_id, body, settings=settings)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown_agent:{agent_id}")
-    except RepoAccessError as exc:
+    except ValueError as exc:  # includes RepoAccessError (a ValueError subclass)
         raise HTTPException(status_code=400, detail=str(exc))
     return JSONResponse(content=resp)
 
@@ -187,7 +194,7 @@ async def resync(namespace: str, request: Request, _: str = Depends(require_auth
     """Re-pull an already-indexed repo and rebuild its index (new commits + code).
     Body (optional): {"clone_token": "..."} to supply a token for a private repo
     on the fly; otherwise ONBOARDING_BITBUCKET_TOKEN is used. Local/public repos
-    need no token. Runs in the background; poll /v1/briefing to see it refresh."""
+    need no token. Runs in the background; re-index completes asynchronously."""
     settings = get_settings()
     raw = await request.body()
     token = ""
@@ -204,47 +211,6 @@ async def resync(namespace: str, request: Request, _: str = Depends(require_auth
     return JSONResponse(content=result)
 
 
-@app.get("/v1/briefing/{namespace}")
-async def get_briefing(namespace: str, _: str = Depends(require_auth)) -> dict[str, Any]:
-    """Poll for a background briefing. When ready, returns the briefing fields at
-    the TOP LEVEL alongside status:
-      {status:'ready', overview, key_features, folder_map, setup_steps,
-       recent_work, owners, glossary, starter_questions, validation_status}
-    Otherwise returns {status:'running'|'pending'|'failed', error?}."""
-    ns = slugify(namespace)
-    brief_path = get_store(get_settings()).ns_dir(ns) / "briefing.json"
-    if brief_path.is_file():
-        try:
-            from onboarding_brain.contract import OnboardingResponse
-            briefing = OnboardingResponse.model_validate_json(brief_path.read_text(encoding="utf-8"))
-            if briefing.overview.answer:
-                from onboarding_brain.kt.ingest import _starter_questions
-                return {
-                    "status": "ready",
-                    "overview": briefing.overview.model_dump(),
-                    "key_features": [f.model_dump() for f in briefing.key_features],
-                    "folder_map": [f.model_dump() for f in briefing.folder_map],
-                    "setup_steps": briefing.setup_steps.model_dump(),
-                    "recent_work": briefing.recent_work.model_dump(),
-                    "owners": [o.model_dump() for o in briefing.owners],
-                    "glossary": [g.model_dump() for g in briefing.glossary],
-                    "starter_questions": _starter_questions(briefing),
-                    "validation_status": briefing.validation_status,
-                }
-        except Exception:
-            pass
-    from onboarding_brain.kt.ingest import _BRIEFING_STARTED, briefing_max_age
-    with _BRIEFING_JOBS_LOCK:
-        running = namespace in _BRIEFING_JOBS or ns in _BRIEFING_JOBS
-        err = _BRIEFING_ERRORS.get(namespace) or _BRIEFING_ERRORS.get(ns)
-        started = _BRIEFING_STARTED.get(namespace) or _BRIEFING_STARTED.get(ns)
-    if err and not running:
-        return {"status": "failed", "error": err}
-    if running and started and (time.time() - started) > briefing_max_age(get_settings()):
-        # the job is still alive but has run far past its bound — treat as hung
-        # so the UI stops polling instead of spinning forever
-        return {"status": "failed", "error": "briefing timed out (the model took too long to respond)"}
-    return {"status": "running" if running else "pending"}
 
 
 @app.post("/v1/ask")
