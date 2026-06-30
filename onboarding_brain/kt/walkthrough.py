@@ -126,6 +126,31 @@ def _extract_body(raw: str) -> str:
     return t
 
 
+def _extract_takeaways(raw: str) -> list[str]:
+    """Pull the `takeaways` bullet list out of the LLM's JSON response.
+    Returns at most 3 short strings; empty list if none were produced."""
+    t = re.sub(r"<think>.*?</think>", "", raw or "", flags=re.S | re.I).strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\s*", "", t).rstrip("`").strip()
+    obj = None
+    try:
+        obj = json.loads(t)
+    except Exception:
+        m = re.search(r"\{.*\}", t, re.S)
+        if m:
+            try:
+                obj = json.loads(m.group(0))
+            except Exception:
+                obj = None
+    if not isinstance(obj, dict):
+        return []
+    raw_list = obj.get("takeaways") or obj.get("key_points") or obj.get("summary")
+    if not isinstance(raw_list, list):
+        return []
+    out = [str(x).strip() for x in raw_list if str(x).strip()]
+    return out[:3]
+
+
 def build_walkthrough(namespace: str, *, settings: Optional[Settings] = None) -> dict:
     settings = settings or get_settings()
     store = get_store(settings)
@@ -215,42 +240,39 @@ def build_walkthrough(namespace: str, *, settings: Optional[Settings] = None) ->
         norm_plan.append((key, title, files, instr))
 
     project = ns
-    # the walkthrough may run on a different backend than chat (e.g. OpenRouter
-    # for the long narrative, Groq for chat) — ONBOARDING_WALKTHROUGH_BACKEND
-    wt_backend = settings.walkthrough_backend or settings.backend
-    backend_is_llm = wt_backend != "mock"
-    provider = get_provider(settings, backend=wt_backend) if backend_is_llm else None
+    # single backend — the long-form walkthrough runs on the same Claude Agent SDK
+    provider = get_provider(settings)
 
     def make_section(job):
         key, title, files, instr = job
         paths_for = [f["path"] for f in files][:8]
         if not files:
             return {"key": key, "title": title,
-                    "body": "_This part isn't present in the indexed code._", "files": []}
-        if not backend_is_llm:
-            return {"key": key, "title": title, "body": _structural_body(title, files), "files": paths_for}
+                    "body": "_This part isn't present in the indexed code._",
+                    "takeaways": [], "files": []}
+        takeaways: list[str] = []
         try:
             prompt = build_walkthrough_prompt(project, ", ".join(stack), title, instr, files,
                                               budget_chars=settings.chat_context_budget_chars)
-            body = _extract_body(provider.complete(WALKTHROUGH_SYSTEM_PROMPT, prompt).text)
+            raw = provider.complete(WALKTHROUGH_SYSTEM_PROMPT, prompt).text
+            body = _extract_body(raw)
+            takeaways = _extract_takeaways(raw)
             if not body:
                 body = _structural_body(title, files)
         except Exception as exc:
             logger.warning("walkthrough_section_failed key=%s error=%s", key, str(exc)[:120])
             body = _structural_body(title, files)
-        return {"key": key, "title": title, "body": body, "files": paths_for}
+        return {"key": key, "title": title, "body": body,
+                "takeaways": takeaways, "files": paths_for}
 
-    if backend_is_llm:
-        with ThreadPoolExecutor(max_workers=4) as exe:
-            sections = list(exe.map(make_section, norm_plan))
-    else:
-        sections = [make_section(j) for j in norm_plan]
+    with ThreadPoolExecutor(max_workers=4) as exe:
+        sections = list(exe.map(make_section, norm_plan))
 
     return {
         "namespace": ns, "title": f"Project walkthrough — {ns}",
         "stack": stack, "sections": [s for s in sections if s["body"]],
         "wiring": wiring,
-        "generated_with": (provider.name if (backend_is_llm and provider) else "structural"),
+        "generated_with": provider.name,
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
     }
 

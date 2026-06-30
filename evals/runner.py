@@ -1,9 +1,8 @@
-"""Offline eval runner + regression gate for Cortex agents.
+"""Eval runner + regression gate for Cortex agents.
 
-Builds throwaway fixture repos (hermetic — no network, no real git, no embedding
-model), runs each agent on the deterministic mock backend, checks expectations,
-writes evals/results.json, and exits non-zero if the pass rate drops below the
-threshold (the regression gate).
+Builds throwaway fixture repos (hermetic — no real git, no embedding model),
+runs each agent, checks expectations, writes evals/results.json, and exits
+non-zero if the pass rate drops below the threshold (the regression gate).
 
 Coverage (per agent):
     briefing      (onboarding-brain)      10 cases
@@ -27,7 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-os.environ.setdefault("ONBOARDING_LLM_BACKEND", "mock")
+os.environ.setdefault("ONBOARDING_LLM_BACKEND", "claude")
 os.environ.setdefault("ONBOARDING_VECTOR_BACKEND", "tfidf")  # hermetic: no embedding model
 os.environ.setdefault("ONBOARDING_TRACE_FILE", str(Path(__file__).parent / "eval_trace.jsonl"))
 os.environ.setdefault("ONBOARDING_ALLOWED_ROOTS", "")
@@ -38,10 +37,13 @@ from onboarding_brain.agents import run_agent  # noqa: E402
 from onboarding_brain.config import get_settings  # noqa: E402
 from onboarding_brain.contract import AskRequest, IngestRequest, OnboardingRequest  # noqa: E402
 from onboarding_brain.kt.chat import ask as kt_ask  # noqa: E402
-from onboarding_brain.kt.ingest import ingest_repo  # noqa: E402
+from onboarding_brain.kt.ingest import ingest_repo, wait_for_briefing  # noqa: E402
+from onboarding_brain.kt.store import slugify  # noqa: E402
 from onboarding_brain.kt.tour import build_tour  # noqa: E402
 from onboarding_brain.kt.walkthrough import build_walkthrough  # noqa: E402
 from onboarding_brain.onboarding import generate_briefing  # noqa: E402
+
+from evals.stub_provider import install_stub  # noqa: E402
 
 RESULTS = Path(__file__).parent / "results.json"
 
@@ -436,6 +438,9 @@ def _write_fixture(case: dict) -> Path:
 
 def run(threshold: float) -> dict:
     settings = get_settings()
+    # Hermetic gate: swap in the deterministic stub provider (test double, not a
+    # user backend) so every check is repeatable, offline, and free of network/API.
+    stub = install_stub(settings)
     results: list[dict] = []
 
     def record(agent: str, case_id: str, checks: list[dict]) -> None:
@@ -457,6 +462,9 @@ def run(threshold: float) -> dict:
         try:
             ns = f"eval_rag_{i}"
             ingest_repo(IngestRequest(repo_path=str(root), namespace=ns, rebuild=True), settings=settings)
+            # briefing generation is a background daemon — wait for it so broad
+            # questions that route through the briefing are deterministic
+            wait_for_briefing(slugify(ns))
             resp = kt_ask(AskRequest(namespace=ns, question=case["question"],
                                      history=case.get("history", [])), settings=settings)
             record("chat", case["id"], _check_rag(case, resp))
@@ -504,7 +512,7 @@ def run(threshold: float) -> dict:
     return {
         "agent_id": AGENT_ID, "agent_version": __version__,
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-        "backend": settings.backend, "model_used": settings.model_used,
+        "backend": "stub (deterministic test double)", "model_used": stub.name,
         "total_cases": n, "passed": npass, "failed": n - npass, "pass_rate": rate,
         "regression_threshold": threshold, "gate_passed": rate >= threshold,
         "per_agent": dict(per_agent), "cases": results,

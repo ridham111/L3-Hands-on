@@ -60,8 +60,10 @@ def test_ingest_then_ask_is_grounded():
 
 def test_ask_unindexed_namespace_errors():
     import pytest
+    # Use a real code question (not a greeting): conversational messages like
+    # "hi" short-circuit before the namespace check and never need an index.
     with pytest.raises(ValueError):
-        ask(AskRequest(namespace="does-not-exist", question="hi"))
+        ask(AskRequest(namespace="does-not-exist", question="how does authentication work?"))
 
 
 def test_slugify():
@@ -218,7 +220,7 @@ def test_standalone_question_not_condensed_on_live_backend():
     history = [{"role": "user", "content": "how do I run it locally?"}]
     q = "How is authentication handled in the application?"
     # provider=None proves no LLM call is attempted for standalone questions
-    out = _condense_question(q, history, provider=None, settings=Settings(backend="groq"), errors=[])
+    out = _condense_question(q, history, provider=None, settings=Settings(), errors=[])
     assert out == q
 
 
@@ -254,35 +256,6 @@ def test_dense_index_is_incremental(monkeypatch, tmp_path):
     chunks[1]["text"] = "beta code v2"
     s.index("inc", chunks, {})
     assert sum(calls) == 1
-
-
-def test_fallback_backend_chains_providers():
-    from onboarding_brain.config import Settings
-    from onboarding_brain.providers import FallbackProvider, get_provider
-    from onboarding_brain.providers.mock_provider import MockProvider
-
-    p = get_provider(Settings(backend="openrouter", fallback_backend="groq",
-                              openrouter_api_key="sk-or-test", groq_api_key="gsk-test"))
-    assert isinstance(p, FallbackProvider)
-    assert p.name.startswith("openrouter/") and "groq/" in p.name
-    # backup missing its key -> primary only, no crash
-    p = get_provider(Settings(backend="openrouter", fallback_backend="groq",
-                              openrouter_api_key="sk-or-test", groq_api_key=""))
-    assert not isinstance(p, FallbackProvider)
-    # mock primary stays mock
-    assert isinstance(get_provider(Settings(backend="mock")), MockProvider)
-
-
-def test_openrouter_provider_selected():
-    from onboarding_brain.config import Settings
-    from onboarding_brain.providers import get_provider
-    from onboarding_brain.providers.openrouter_provider import OpenRouterProvider
-
-    p = get_provider(Settings(backend="openrouter", fallback_backend="",
-                              openrouter_api_key="sk-or-test",
-                              openrouter_model="nvidia/nemotron-3-ultra-550b-a55b:free"))
-    assert isinstance(p, OpenRouterProvider)
-    assert p.name == "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
 
 
 def test_select_relevant_is_dynamic():

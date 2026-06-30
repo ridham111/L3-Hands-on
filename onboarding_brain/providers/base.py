@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import abc
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from ..config import Settings
 
@@ -16,6 +17,23 @@ class LLMError(RuntimeError):
 class LLMResult:
     text: str
     model: str
+
+
+@dataclass
+class ToolCall:
+    """A single tool invocation requested by the LLM."""
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class TurnResult:
+    """Result of one LLM turn in the agentic loop."""
+    stop_reason: str                        # "end_turn" | "tool_use" | "max_tokens"
+    text: str                               # final text when stop_reason == "end_turn"
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    raw_content: Any = None                 # provider-native blocks re-sent verbatim
 
 
 class LLMProvider(abc.ABC):

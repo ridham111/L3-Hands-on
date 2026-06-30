@@ -10,16 +10,18 @@ uniform JSON errors, no stack-trace leakage.
 """
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+from queue import Empty, Queue
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from onboarding_brain import AGENT_ID, __version__
@@ -262,6 +264,68 @@ async def ask_endpoint(request: Request, _: str = Depends(require_auth)):
     return JSONResponse(content=resp.model_dump(mode="json"))
 
 
+@app.post("/v1/ask/stream")
+async def ask_stream_endpoint(request: Request, _: str = Depends(require_auth)):
+    """SSE endpoint — streams real agent progress events then the final answer."""
+    settings = get_settings()
+    model = _parse_body(await request.body(), AskRequest, settings.max_request_bytes)
+
+    event_queue: Queue = Queue()
+    result_holder: dict = {}
+
+    def _run() -> None:
+        try:
+            resp = kt_ask(model, settings=settings,
+                          event_callback=lambda e: event_queue.put(e))
+            result_holder["resp"] = resp
+        except ValueError as exc:
+            result_holder["err"] = {"code": 400, "message": str(exc)}
+        except (RuntimeError, ImportError, ModuleNotFoundError) as exc:
+            result_holder["err"] = {"code": 503, "message": str(exc)}
+        except Exception as exc:  # noqa: BLE001
+            result_holder["err"] = {"code": 500, "message": str(exc)}
+        finally:
+            event_queue.put({"type": "_done_sentinel"})
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+
+    async def _generate():
+        ping = 0
+        while True:
+            await asyncio.sleep(0.04)
+            ping += 1
+            drained = False
+            while True:
+                try:
+                    ev = event_queue.get_nowait()
+                except Empty:
+                    break
+                if ev.get("type") == "_done_sentinel":
+                    err = result_holder.get("err")
+                    if err:
+                        yield f"data: {json.dumps({'type': 'error', **err})}\n\n"
+                    else:
+                        resp = result_holder.get("resp")
+                        if resp:
+                            payload = resp.model_dump(mode="json")
+                            payload["type"] = "done"
+                            yield f"data: {json.dumps(payload)}\n\n"
+                    worker.join(timeout=2)
+                    return
+                yield f"data: {json.dumps(ev)}\n\n"
+                drained = True
+            if not drained and ping % 50 == 0:
+                yield ": ping\n\n"
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                 "Connection": "keep-alive"},
+    )
+
+
 @app.get("/v1/gaps/{namespace}")
 async def gaps(namespace: str, _: str = Depends(require_auth)) -> dict[str, Any]:
     from onboarding_brain.kt.knowledge import detect_gaps
@@ -272,15 +336,31 @@ async def gaps(namespace: str, _: str = Depends(require_auth)) -> dict[str, Any]
 
 
 @app.get("/v1/tour/{namespace}")
-async def tour(namespace: str, _: str = Depends(require_auth)) -> JSONResponse:
+async def tour(namespace: str, refresh: bool = False,
+               _: str = Depends(require_auth)) -> JSONResponse:
     """Guided Codebase Tour — an ordered learning path of real files for new joiners.
+    Stops carry an LLM one-line insight (narration); since that is expensive it is
+    cached to tour.json and reused. Pass ?refresh=true to regenerate.
     Response shape is the TourResponse contract (contract.py)."""
     from onboarding_brain.contract import TourResponse
-    from onboarding_brain.kt.tour import build_tour
+    from onboarding_brain.kt.tour import build_tour, load_cached_tour, save_cached_tour
+    settings = get_settings()
+
+    # serve a narrated cache when available (unless the caller forces a refresh)
+    if not refresh:
+        cached = load_cached_tour(namespace, settings=settings)
+        if cached and cached.get("narrated"):
+            try:
+                return JSONResponse(content=TourResponse.model_validate(cached).model_dump(mode="json"))
+            except Exception:
+                pass  # stale/invalid cache shape — fall through and rebuild
+
     try:
-        raw = await run_in_threadpool(build_tour, namespace, settings=get_settings())
+        raw = await run_in_threadpool(build_tour, namespace, narrate=True, settings=settings)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    if raw.get("narrated"):  # only cache once narration succeeded
+        await run_in_threadpool(save_cached_tour, namespace, raw, settings=settings)
     # validate the agent's output against the published contract before returning
     return JSONResponse(content=TourResponse.model_validate(raw).model_dump(mode="json"))
 
@@ -307,8 +387,7 @@ async def get_walkthrough(namespace: str, _: str = Depends(require_auth)) -> dic
     if cached:
         # a cache made offline (structural) is stale once an LLM backend is set —
         # treat it as absent so the client regenerates a full narrative version
-        wt_backend = settings.walkthrough_backend or settings.backend
-        stale = cached.get("generated_with") == "structural" and wt_backend != "mock"
+        stale = cached.get("generated_with") == "structural" and settings.backend != "mock"
         if not stale:
             try:
                 doc = WalkthroughResponse.model_validate(cached).model_dump(mode="json")

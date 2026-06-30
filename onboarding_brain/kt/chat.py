@@ -2,8 +2,7 @@
 
 Trust layer: the model is told to answer ONLY from retrieved snippets and to
 say "I couldn't find this in the indexed code" otherwise; we then verify that
-every cited source was actually in the retrieved set. Works offline too — the
-mock backend returns an extractive answer from the top snippets.
+every cited source was actually in the retrieved set.
 """
 from __future__ import annotations
 
@@ -239,7 +238,7 @@ def select_relevant(chunks: list[dict], k_min: int, k_max: int) -> list[dict]:
     if len(chunks) <= k_min:
         return chunks[:k_max]
     top = chunks[0].get("score") or 1e-9
-    kept = [c for c in chunks if (c.get("score") or 0.0) >= 0.35 * top]
+    kept = [c for c in chunks if (c.get("score") or 0.0) >= 0.20 * top]
     if len(kept) < k_min:
         kept = chunks[:k_min]
     return kept[:k_max]
@@ -295,8 +294,6 @@ def _condense_question(question: str, history: list[dict], provider: LLMProvider
     Falls back to the offline heuristic, never fails the request."""
     if not history or not _looks_like_followup(question):
         return question
-    if settings.backend == "mock":
-        return condense_question_offline(question, history)
     try:
         result = provider.complete(CONDENSE_SYSTEM_PROMPT, build_condense_prompt(question, history))
         rewritten = str(_parse(result.text).get("question") or "").strip()
@@ -307,23 +304,54 @@ def _condense_question(question: str, history: list[dict], provider: LLMProvider
     return condense_question_offline(question, history)
 
 
-def _mock_answer(question: str, chunks: list[dict]) -> tuple[str, list[str]]:
-    if not chunks:
-        return NOT_FOUND, []
-    top = chunks[:3]
-    lines = [f"Based on the indexed code, the most relevant places are:"]
-    for c in top:
-        m = c["metadata"]
-        first = next((ln.strip() for ln in c["text"].splitlines() if ln.strip()), "")
-        lines.append(f"- {m['path']} (lines {m['line_start']}-{m['line_end']}): {first[:120]}")
-    lines.append("Open these files for details. (Offline mode: extractive answer; set a Groq key for natural-language answers.)")
-    return "\n".join(lines), [c["metadata"]["path"] for c in top]
-
 
 def ask(request: AskRequest, *, settings: Optional[Settings] = None,
-        provider: Optional[LLMProvider] = None) -> AskResponse:
+        provider: Optional[LLMProvider] = None, event_callback=None) -> AskResponse:
+    # ── Conversational short-circuit ─────────────────────────────────────────
+    # Must fire before provider construction so "hi", "thanks", etc. are handled
+    # regardless of which backend is active (agent, RAG, mock, etc.).
+    from .agent import _CONVERSATIONAL_RE, _CONVERSATIONAL_REPLY, AGENT_ID as _AGENT_ID
+    if _CONVERSATIONAL_RE.match(request.question.strip()):
+        _cb = event_callback if callable(event_callback) else (lambda _e: None)
+        _cb({"type": "composing"})
+        _s = settings or get_settings()
+        return AskResponse(
+            answer=_CONVERSATIONAL_REPLY,
+            sources=[],
+            grounded=False,
+            validation_status="passed",
+            wiring=None,
+            trace=Trace(
+                trace_id=new_trace_id(),
+                agent_id=_AGENT_ID,
+                model_used=_s.model_used,
+                duration_ms=0,
+                strategy="conversational",
+                errors=[],
+                grounding={"namespace": request.namespace, "tool_calls": 0,
+                           "files_accessed": 0, "iterations": 0, "call_log": []},
+            ),
+        )
+    # ─────────────────────────────────────────────────────────────────────────
+
     settings = settings or get_settings()
-    provider = provider or get_provider(settings)
+    if not provider:
+        provider = get_provider(settings)
+
+    # ── Pure agent path (production) ──────────────────────────────────────────
+    # The only backend is the Claude Agent SDK: the agent harness owns the loop
+    # and our 9 tools run as an in-process MCP server. Every real request goes
+    # here. (The RAG pipeline below is unreachable in production — no backend
+    # lacks tool use — and survives ONLY as the deterministic offline test
+    # harness, driven by the StubProvider in evals/tests.)
+    from ..providers.claude_agent_sdk_provider import as_sdk_provider
+    sdk_provider = as_sdk_provider(provider)
+    if sdk_provider is not None:
+        from .agent_sdk import agent_ask_sdk
+        return agent_ask_sdk(request, settings=settings, provider=sdk_provider,
+                             event_callback=event_callback)
+    # ──────────────── TEST-ONLY fallback (StubProvider) ───────────────────────
+
     store = get_store(settings)
     trace_id = new_trace_id()
     errors: list[str] = []
@@ -383,33 +411,48 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
         # widen the strongest hits with their neighboring code (prompt-only)
         chunks = _expand_neighbors(store, namespace, chunks)
 
-        if settings.backend == "mock":
-            answer, used = _mock_answer(request.question, chunks)
-            strategy = "mock"
-        else:
-            strategy = "llm"
-            try:
-                result = provider.complete(CHAT_SYSTEM_PROMPT,
-                                            build_chat_prompt(request.question, chunks, history,
-                                                              settings.chat_context_budget_chars))
-                parsed = _parse(result.text)
-                answer = str(parsed.get("answer", "")).strip()
-                note = str(parsed.get("general_note", "")).strip()
-                # only attach general guidance to setup/run questions; never to
-                # "what/how/where" code questions (keeps answers repo-grounded)
-                if (note and _SETUP_Q.search(request.question)
-                        and not answer.lower().startswith("i couldn't find")):
-                    answer += f"\n\n**General note (not from the repo):** {note}"
-                raw_used = parsed.get("used_sources")
-                used = [_norm_citation(str(s)) for s in raw_used] if isinstance(raw_used, list) else []
-            except (LLMError, ValueError) as exc:
-                errors.append(f"answer_failed: {exc}")
-                answer, used, strategy = NOT_FOUND, [], "degraded"
+        strategy = "llm"
+        try:
+            chat_prompt = build_chat_prompt(request.question, chunks, history,
+                                            settings.chat_context_budget_chars)
+            result = provider.complete(CHAT_SYSTEM_PROMPT, chat_prompt)
+            parsed = _parse(result.text)
+            answer = str(parsed.get("answer", "")).strip()
+            # If the model returned not-found but we have chunks, retry once
+            # with an explicit instruction to use the provided snippets.
+            _nf = NOT_FOUND.lower()[:20]
+            if answer.lower().startswith(_nf) and chunks:
+                retry_system = CHAT_SYSTEM_PROMPT + (
+                    "\n\nCRITICAL OVERRIDE: The context block above contains real code snippets. "
+                    "You MUST use them. Write a grounded answer referencing those files now. "
+                    "Do NOT output not-found. This is mandatory."
+                )
+                result2 = provider.complete(retry_system, chat_prompt)
+                parsed2 = _parse(result2.text)
+                answer2 = str(parsed2.get("answer", "")).strip()
+                if answer2 and not answer2.lower().startswith(_nf):
+                    parsed = parsed2
+                    answer = answer2
+                    errors.append("not_found_retry:success")
+                else:
+                    errors.append("not_found_retry:failed")
+            note = str(parsed.get("general_note", "")).strip()
+            # only attach general guidance to setup/run questions; never to
+            # "what/how/where" code questions (keeps answers repo-grounded)
+            if (note and _SETUP_Q.search(request.question)
+                    and not answer.lower().startswith(NOT_FOUND.lower()[:20])):
+                answer += f"\n\n**General note (not from the repo):** {note}"
+            raw_used = parsed.get("used_sources")
+            used = [_norm_citation(str(s)) for s in raw_used] if isinstance(raw_used, list) else []
+        except (LLMError, ValueError) as exc:
+            errors.append(f"answer_failed: {exc}")
+            answer, used, strategy = NOT_FOUND, [], "degraded"
 
     # grounding: cited sources must be retrieved snippets or, at minimum,
     # real indexed files inferred from them (e.g. named in an import)
     hallucinated, inferred = classify_citations(used, retrieved_paths, store.known_paths(namespace))
-    is_not_found = answer.strip().lower().startswith("i couldn't find")
+    _nf_prefix = NOT_FOUND.lower()[:20]
+    is_not_found = answer.strip().lower().startswith(_nf_prefix)
     grounded = not hallucinated and (bool(chunks) or is_not_found)
     status = "passed"
     if hallucinated:

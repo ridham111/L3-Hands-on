@@ -233,7 +233,7 @@ def generate_briefing_from_ctx(
     provider = provider or get_provider(settings)
     trace_id = new_trace_id()
     errors: list[str] = []
-    strategy = "mock" if settings.backend == "mock" else "llm"
+    strategy = "llm"
 
     log_event("onboarding_start", trace_id)
     parsed: dict = {}
