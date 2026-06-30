@@ -64,7 +64,8 @@
       "Bash(grep -rniE \"briefing|day.?1|day-one|onboard --|/v1/briefing|generate_briefing|starter_question|overview agent\" *.md docs/*.md)",
       "Bash(grep -rniE \"groq|openrouter|fallback.?backend|model-agnostic|multi-backend|claude auth\\\\b\" *.md docs/*.md)",
       "Bash(grep -rniE \"pure agent|deliberate|multiplexer|the value is the agent\" *.md docs/*.md)",
-      "Bash(grep -rniE \"75 test|31 check|six \\(specialised|specialized\\)|five agents|10 cases|briefing 10\" *.md docs/*.md)"
+      "Bash(grep -rniE \"75 test|31 check|six \\(specialised|specialized\\)|five agents|10 cases|briefing 10\" *.md docs/*.md)",
+      "Bash(./.venv/Scripts/python.exe -m pip install \"reportlab>=4.0\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\RidhamPansuriya\\.claude\\projects\\c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on"

@@ -1768,7 +1768,7 @@ function renderWalkthrough(){
   $('#stream').innerHTML = '<div class="wt">'
     + '<div class="wt-h"><strong>' + esc(w.title || ('Walkthrough — ' + activeNs)) + '</strong>'
     + '<div class="wt-actions">'
-    + '<button class="wt-btn" onclick="printWalkthrough()">⤓ Save as PDF</button>'
+    + '<button class="wt-btn" onclick="downloadWalkthroughPdf(this)">⤓ Save as PDF</button>'
     + '<button class="wt-btn" onclick="downloadWalkthroughMd()">⤓ Markdown</button>'
     + '<button class="wt-btn" onclick="closeWalkthrough()">✕ close</button></div></div>'
     + (stack ? '<div class="wt-stack">' + stack + '</div>' : '')
@@ -1798,32 +1798,28 @@ function downloadWalkthroughMd(){
   a.download = (activeNs || 'walkthrough') + '-walkthrough.md';
   a.click(); URL.revokeObjectURL(a.href);
 }
-function printWalkthrough(){
-  if (!_walk) return;
-  const w = _walk;
-  let body = '';
-  (w.sections || []).forEach(s => {
-    const tk = (s.takeaways && s.takeaways.length)
-      ? '<div class="tk"><b>Key takeaways</b><ul>' + s.takeaways.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></div>'
-      : '';
-    body += '<section><h2>' + esc(s.title) + '</h2>' + tk + md(s.body || '')
-      + ((s.files && s.files.length) ? '<p class="files">Files: ' + s.files.map(esc).join(', ') + '</p>' : '')
-      + '</section>';
-  });
-  const html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(w.title || 'Walkthrough') + '</title>'
-    + '<style>body{font-family:Segoe UI,Arial,sans-serif;max-width:820px;margin:32px auto;padding:0 24px;color:#1a1a1a;line-height:1.7}'
-    + 'h1{font-size:25px} h2{font-size:18px;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:30px}'
-    + 'code{background:#f3f0eb;border:1px solid #e3ddd3;border-radius:4px;padding:0 4px;font-family:Consolas,monospace;font-size:90%;color:#9a4a28}'
-    + '.files{font-size:12px;color:#888;margin-top:8px} .stack{color:#555} .li{display:block;margin:3px 0} strong{font-weight:600}'
-    + '.tk{background:#f7f4ee;border:1px solid #e3ddd3;border-radius:7px;padding:8px 14px;margin:10px 0 14px}'
-    + '.tk b{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#9a4a28} .tk ul{margin:5px 0 2px;padding-left:20px} .tk li{margin:2px 0}'
-    + '</style></head><body><h1>' + esc(w.title || ('Walkthrough — ' + activeNs)) + '</h1>'
-    + (w.stack && w.stack.length ? '<p class="stack"><b>Stack:</b> ' + esc(w.stack.join(', ')) + '</p>' : '')
-    + body + '</body></html>';
-  const win = window.open('', '_blank');
-  if (!win){ toast('Allow pop-ups to save as PDF', true); return; }
-  win.document.write(html); win.document.close(); win.focus();
-  setTimeout(() => win.print(), 350);
+async function downloadWalkthroughPdf(btn){
+  if (!_walk || !activeNs) return;
+  const label = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = '⤓ Building PDF…'; }
+  try {
+    const res = await fetch('/v1/walkthrough/' + encodeURIComponent(activeNs) + '/pdf',
+      { headers: { 'Authorization': 'Bearer ' + $('#key').value.trim() } });
+    if (!res.ok){
+      toast(res.status === 404 ? 'Generate the walkthrough first' : 'Could not build the PDF', true);
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = activeNs + '-walkthrough.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  } catch (e){
+    toast('Could not download the PDF', true);
+  } finally {
+    if (btn){ btn.disabled = false; btn.textContent = label; }
+  }
 }
 async function closeWalkthrough(){
   if (_walkPoll){ clearInterval(_walkPoll); _walkPoll = null; }
