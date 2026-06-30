@@ -42,8 +42,8 @@ python -m venv .venv
 Open **http://localhost:8000**, paste a repo folder or a clone link, click **Ingest**,
 and start asking questions.
 
-Out of the box it runs **completely offline** — no API key needed. (For richer, natural
-answers you can plug in a free Groq key later; see *Settings* below.)
+It answers using **your Claude Pro/Max subscription over OAuth — no billed API key.** Cortex is
+a pure agent built on the Claude Agent SDK (see *Settings* below for the one-time login).
 
 ---
 
@@ -166,15 +166,37 @@ Everything is controlled by environment variables, with safe defaults so it just
 
 | What | Setting | Choices | Default |
 |---|---|---|---|
-| AI for answers | `ONBOARDING_LLM_BACKEND` | `claude`, `groq`, `openrouter` | `claude` |
+| The agent | `ONBOARDING_LLM_BACKEND` | `claude_sdk` (only) | `claude_sdk` |
+| Agent model | `CLAUDE_SDK_MODEL` | blank (subscription default) or a model id | blank |
 | How it searches | `ONBOARDING_VECTOR_BACKEND` | `tfidf` (fast), `dense`, `hybrid` (smartest) | `tfidf` |
 | Where chat history lives | `ONBOARDING_CHAT_STORE` | `auto`, `json`, `mongo` | `auto` |
 | API keys | `ONBOARDING_API_KEYS` | comma-separated keys | `dev-local-key` |
 
-The default backend is **Claude** — it authenticates via `claude auth` OAuth (no API key needed
-if you have Claude Pro). For Groq, set `ONBOARDING_LLM_BACKEND=groq` and add a free `GROQ_API_KEY`.
-The `hybrid` search option understands meaning (so "auth" finds "login"), but it's slower to set
-up on big repos — Cortex automatically falls back to the fast option for very large projects.
+### Cortex is a pure agent (Claude Agent SDK)
+
+Cortex has exactly **one backend: `claude_sdk`**. It runs **inside Anthropic's agent harness**
+([claude-agent-sdk](https://pypi.org/project/claude-agent-sdk/)) — the SDK owns the agentic
+tool-use loop, and Cortex only supplies its 9 code-aware tools as an in-process MCP server,
+locked down so the agent can **only** read the indexed code (no filesystem or shell access).
+This is a deliberate stance: the value is the *agent*, not an LLM-call multiplexer. Every part
+(chat, briefing, install guide, tour, walkthrough) runs on it.
+
+It runs on your **Claude Pro/Max subscription over OAuth — no billed API key.** One-time setup,
+pick one:
+
+```powershell
+claude setup-token        # prints a 1-year token -> set CLAUDE_CODE_OAUTH_TOKEN
+# ...or just log in once on this machine:
+claude                    # interactive login; creds stored in ~/.claude
+```
+
+**Important:** make sure `ANTHROPIC_API_KEY` is *unset* — if present it takes precedence over
+OAuth and bills the API. Cortex refuses to start with a key set unless you opt in via
+`ONBOARDING_CLAUDE_SDK_ALLOW_API_KEY=1`. Leave `CLAUDE_SDK_MODEL` blank to use the subscription's
+default model (strongest and, in our A/B testing, the most tool-efficient).
+
+> Note (Anthropic policy): use **your own** subscription token in your own deployment. Letting
+> *end users* sign in with *their* claude.ai accounts is not permitted — keep this single-operator.
 
 ---
 
@@ -216,8 +238,9 @@ to keep in mind if you deploy it more widely:
   not line-by-line history.
 - **Answer quality is checked structurally, not stylistically.** The quality gate verifies
   the right files and grounding; it doesn't yet grade how well-written an answer reads.
-- **Claude backend requires `claude auth` login.** Run `claude auth` once in your terminal
-  to authenticate. No API key is needed for Claude Pro users.
+- **Requires a Claude subscription login.** Run `claude setup-token` (or `claude` to log in)
+  once so the Agent SDK can use your Pro/Max subscription. No billed API key is needed; keep
+  `ANTHROPIC_API_KEY` unset.
 
 See [docs/limitations.md](docs/limitations.md) for the full list with deployment guidance.
 

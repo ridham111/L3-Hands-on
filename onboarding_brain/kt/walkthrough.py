@@ -240,10 +240,8 @@ def build_walkthrough(namespace: str, *, settings: Optional[Settings] = None) ->
         norm_plan.append((key, title, files, instr))
 
     project = ns
-    # the walkthrough may run on a different backend than chat (e.g. OpenRouter
-    # for the long narrative, Groq for chat) — ONBOARDING_WALKTHROUGH_BACKEND
-    wt_backend = settings.walkthrough_backend or settings.backend
-    provider = get_provider(settings, backend=wt_backend)
+    # single backend — the long-form walkthrough runs on the same Claude Agent SDK
+    provider = get_provider(settings)
 
     def make_section(job):
         key, title, files, instr = job

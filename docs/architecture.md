@@ -132,15 +132,28 @@ User question
 trace.json             — JSONL append-only structured event log
 ```
 
-## LLM backends
+## LLM backend — pure Claude Agent SDK
+
+There is exactly **one backend: `claude_sdk`** ([`providers/claude_agent_sdk_provider.py`](../onboarding_brain/providers/claude_agent_sdk_provider.py)).
+This is a deliberate "pure agent" stance — the value is the agent, not an LLM-call multiplexer.
 
 | Backend | Config value | Auth |
 |---|---|---|
-| Claude (Anthropic) | `claude` | OAuth via `~/.claude/.credentials.json` — no API key needed |
-| Groq | `groq` | `GROQ_API_KEY` env var |
-| OpenRouter | `openrouter` | `OPENROUTER_API_KEY` env var |
+| Claude Agent SDK | `claude_sdk` | Subscription OAuth: `CLAUDE_CODE_OAUTH_TOKEN` or `~/.claude` login — no billed key |
 
-Backend selected via `ONBOARDING_LLM_BACKEND`. Claude is the default.
+How it works: the **claude-agent-sdk** owns the agentic loop internally. Cortex's 9 tools are
+handed to it as an in-process MCP server ([`kt/agent_sdk.py`](../onboarding_brain/kt/agent_sdk.py))
+built from `TOOL_DEFINITIONS` + `ToolExecutor`. Built-in Claude Code tools (`Read`/`Bash`/…) are
+disabled (`tools=[]`) and `allowed_tools` is locked to `mcp__kt__*`, preserving the read-only /
+grounded guarantee. Grounding, sources, wiring, and traces are assembled by `assemble_agent_response()`
+(in `kt/agent.py`). The SDK is async; the provider bridges to the app's sync code by running each
+call in a worker thread with its own event loop. The single-shot helpers (briefing, install guide,
+tour, walkthrough) call the same provider's `_complete()`.
+
+> The diagram above shows the conceptual Level-3 loop. In this codebase the loop itself lives
+> **inside the SDK**, not in `kt/agent.py` — `kt/agent.py` now only holds the system prompt, tool
+> metadata, and shared response assembly. A deterministic RAG path + `StubProvider` remain in
+> `kt/chat.py`/`evals/` **solely** as the offline test harness; no production backend reaches them.
 
 ## Security model
 

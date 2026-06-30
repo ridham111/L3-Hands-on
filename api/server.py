@@ -387,8 +387,7 @@ async def get_walkthrough(namespace: str, _: str = Depends(require_auth)) -> dic
     if cached:
         # a cache made offline (structural) is stale once an LLM backend is set —
         # treat it as absent so the client regenerates a full narrative version
-        wt_backend = settings.walkthrough_backend or settings.backend
-        stale = cached.get("generated_with") == "structural" and wt_backend != "mock"
+        stale = cached.get("generated_with") == "structural" and settings.backend != "mock"
         if not stale:
             try:
                 doc = WalkthroughResponse.model_validate(cached).model_dump(mode="json")

@@ -161,136 +161,30 @@ def _tool_arg(name: str, inp: dict) -> str:
     return str(inp.get(key, ""))[:80] if key else ""
 
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Main entry point
+# Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def agent_ask(
+def assemble_agent_response(
     request: AskRequest,
+    settings: Settings,
+    store,
+    namespace: str,
+    executor: ToolExecutor,
+    final_answer: str,
     *,
-    settings: Optional[Settings] = None,
-    provider=None,
-    event_callback=None,
+    trace_id: str,
+    errors: list[str],
+    iterations_used: int,
+    duration_ms: int,
 ) -> AskResponse:
-    """Run the agentic tool-use loop and return a grounded AskResponse.
+    """Build the grounded AskResponse from the executor's accumulated state.
 
-    The LLM controls the entire flow. Python executes tool calls and assembles
-    the final response object — it makes no content decisions.
+    Used by `agent_ask_sdk` (the Claude Agent SDK loop) to turn the tools' recorded
+    `used_paths` / `call_log` into sources, wiring, trace, and chat-history. Kept in
+    this module because it owns the agent's shared constants and tool metadata.
     """
-    settings = settings or get_settings()
-    store = get_store(settings)
-    trace_id = new_trace_id()
-    errors: list[str] = []
-    namespace = slugify(request.namespace)
-    log_event("agent_ask_start", trace_id)
-
-    if not store.exists(namespace):
-        raise ValueError(f"namespace not indexed: {namespace}. Ingest the repo first.")
-
-    if provider is None:
-        provider = get_provider(settings)
-
-    executor = ToolExecutor(namespace=namespace, store=store)
-    cb = event_callback if callable(event_callback) else (lambda _e: None)
-
-    # ── Short-circuit purely conversational messages ──────────────────────────
-    if _CONVERSATIONAL_RE.match(request.question.strip()):
-        cb({"type": "composing"})
-        return AskResponse(
-            answer=_CONVERSATIONAL_REPLY,
-            sources=[],
-            grounded=False,
-            validation_status="passed",
-            wiring=None,
-            trace=Trace(
-                trace_id=new_trace_id(),
-                agent_id=AGENT_ID,
-                model_used=settings.model_used,
-                duration_ms=0,
-                strategy="conversational",
-                errors=[],
-                grounding={"namespace": namespace, "tool_calls": 0,
-                           "files_accessed": 0, "iterations": 0, "call_log": []},
-            ),
-        )
-
-    # ── Build initial conversation ────────────────────────────────────────────
-    history = [h.model_dump() for h in request.history]
-    convo = ""
-    for turn in history[-6:]:
-        role = "User" if turn.get("role") == "user" else "Assistant"
-        convo += f"{role}: {turn.get('content', '')[:600]}\n"
-
-    user_content = (f"Previous conversation:\n{convo}\n" if convo else "") + request.question
-    messages: list[dict] = [{"role": "user", "content": user_content}]
-
-    # ── Agentic tool-use loop ─────────────────────────────────────────────────
-    final_answer = NOT_FOUND
-    iterations_used = 0
-
-    with timed() as t:
-        for iteration in range(MAX_ITERATIONS):
-            iterations_used = iteration + 1
-            cb({"type": "iteration", "n": iterations_used, "max": MAX_ITERATIONS})
-            if iteration == 0:
-                cb({"type": "thinking"})
-            result = None
-            for _retry in range(_MAX_LLM_RETRIES):
-                try:
-                    result = provider.complete_turn(
-                        AGENT_SYSTEM_PROMPT,
-                        messages,
-                        TOOL_DEFINITIONS,
-                    )
-                    break  # success — exit retry loop
-                except Exception as exc:  # noqa: BLE001
-                    is_last = _retry == _MAX_LLM_RETRIES - 1
-                    errors.append(f"llm_error(retry={_retry}):{exc}")
-                    cb({"type": "error_iter", "message": str(exc), "retry": _retry})
-                    if is_last:
-                        break  # exhausted retries — fall through to result=None check
-            if result is None:
-                break  # all retries failed — end the agent loop
-
-            if result.stop_reason == "end_turn":
-                cb({"type": "composing"})
-                final_answer = result.text.strip() or NOT_FOUND
-                break
-
-            if result.stop_reason == "tool_use":
-                messages.append({"role": "assistant", "content": result.raw_content})
-
-                tool_results = []
-                for tc in result.tool_calls:
-                    cb({"type": "tool_call", "tool": tc.name, "arg": _tool_arg(tc.name, tc.input)})
-                    output = executor.execute(tc.name, tc.input)
-                    ok = bool(output.strip()) and not output.startswith("[error")
-                    cb({"type": "tool_result", "tool": tc.name, "ok": ok,
-                        "chars": len(output)})
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tc.id,
-                        "content": output,
-                    })
-                messages.append({"role": "user", "content": tool_results})
-
-            elif result.stop_reason == "max_tokens":
-                if result.text.strip():
-                    final_answer = result.text.strip()
-                errors.append("max_tokens_reached")
-                break
-        else:
-            # Exhausted MAX_ITERATIONS — use whatever the last assistant text was
-            errors.append("max_iterations_reached")
-            for msg in reversed(messages):
-                if msg.get("role") == "assistant":
-                    for block in (msg.get("content") or []):
-                        if hasattr(block, "type") and block.type == "text" and block.text.strip():
-                            final_answer = block.text.strip()
-                            break
-                    break
-
-    # ── Assemble response ─────────────────────────────────────────────────────
     is_not_found = final_answer.lower().startswith("i couldn't find")
     grounded = bool(executor.used_paths) or is_not_found
 
@@ -312,7 +206,7 @@ def agent_ask(
         trace_id=trace_id,
         agent_id=AGENT_ID,
         model_used=settings.model_used,
-        duration_ms=t["ms"],
+        duration_ms=duration_ms,
         strategy="agent",
         errors=errors,
         grounding={
@@ -330,7 +224,7 @@ def agent_ask(
         "tool_calls": len(executor.call_log),
         "files_accessed": len(executor.used_paths),
         "iterations": iterations_used,
-        "duration_ms": t["ms"],
+        "duration_ms": duration_ms,
     })
     log_event("agent_ask_end", trace_id)
 
@@ -361,11 +255,6 @@ def agent_ask(
         wiring=wiring,
         trace=trace,
     )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _sources_from_executor(executor: ToolExecutor, store, namespace: str) -> list[Source]:
     """Build Source list from every file the agent accessed via tools."""

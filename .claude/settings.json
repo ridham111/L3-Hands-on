@@ -32,7 +32,26 @@
       "Read(//tmp/**)",
       "Bash(cd \"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" && grep -A3 \"FAIL\" /tmp/eval_out.txt)",
       "Bash(python -m pytest -q)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(cd \"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" && ls -la && echo \"---ROOT---\" && ls -la ..)",
+      "Read(//c/Users/RidhamPansuriya/Desktop/onboarding-brain/**)",
+      "Bash(ls .claude)",
+      "Bash(ls CLAUDE.md)",
+      "WebSearch",
+      "Bash(./.venv/Scripts/python.exe -m pip install claude-agent-sdk)",
+      "Bash(./.venv/Scripts/python.exe -)",
+      "Bash(./.venv/Scripts/python.exe -c \"import os; os.environ['ONBOARDING_LLM_BACKEND']='claude_sdk'; from onboarding_brain.config import get_settings; from onboarding_brain.kt.store import get_store; st=get_store\\(get_settings\\(\\)\\); ns=st.list_namespaces\\(\\) if hasattr\\(st,'list_namespaces'\\) else '?'; print\\('namespaces:', ns\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 ./.venv/Scripts/python.exe -)",
+      "Bash(PYTHONUTF8=1 ./.venv/Scripts/python.exe -)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/test_claude_sdk_backend.py -q)",
+      "Bash(./.venv/Scripts/python.exe -c ' *)",
+      "Bash(./.venv/Scripts/python.exe -c \"import json; d=json.load\\(open\\('evals/results.json'\\)\\); print\\({k:v for k,v in d.items\\(\\) if k!='cases'} if isinstance\\(d,dict\\) else type\\(d\\)\\)\")",
+      "Bash(AB_LIMIT=1 PYTHONUTF8=1 ./.venv/Scripts/python.exe \"C:/Users/RIDHAM~1/AppData/Local/Temp/claude/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/f391c640-d027-4c5c-81aa-37ef5885fbb5/scratchpad/ab_compare.py\")",
+      "Bash(AB_LIMIT=1 PYTHONPATH=\"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" PYTHONUTF8=1 ./.venv/Scripts/python.exe \"C:/Users/RIDHAM~1/AppData/Local/Temp/claude/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/f391c640-d027-4c5c-81aa-37ef5885fbb5/scratchpad/ab_compare.py\")",
+      "Bash(PYTHONPATH=\"c:/Users/RidhamPansuriya/Desktop/onboarding-brain/L3-Hands-on\" PYTHONUTF8=1 ./.venv/Scripts/python.exe \"C:/Users/RIDHAM~1/AppData/Local/Temp/claude/c--Users-RidhamPansuriya-Desktop-onboarding-brain-L3-Hands-on/f391c640-d027-4c5c-81aa-37ef5885fbb5/scratchpad/ab_compare.py\")",
+      "Bash(PYTHONUTF8=1 ./.venv/Scripts/python.exe -c ' *)",
+      "Bash(./.venv/Scripts/python.exe -m evals.runner)"
     ]
   }
 }

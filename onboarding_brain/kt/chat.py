@@ -307,8 +307,6 @@ def _condense_question(question: str, history: list[dict], provider: LLMProvider
 
 def ask(request: AskRequest, *, settings: Optional[Settings] = None,
         provider: Optional[LLMProvider] = None, event_callback=None) -> AskResponse:
-    import dataclasses
-
     # ── Conversational short-circuit ─────────────────────────────────────────
     # Must fire before provider construction so "hi", "thanks", etc. are handled
     # regardless of which backend is active (agent, RAG, mock, etc.).
@@ -338,22 +336,21 @@ def ask(request: AskRequest, *, settings: Optional[Settings] = None,
 
     settings = settings or get_settings()
     if not provider:
-        if request.backend or request.claude_model:
-            if request.claude_model:
-                settings = dataclasses.replace(settings, claude_model=request.claude_model)
-            provider = get_provider(settings, backend=request.backend or settings.backend)
-        else:
-            provider = get_provider(settings)
+        provider = get_provider(settings)
 
-    # ── Level-3 Agent path ───────────────────────────────────────────────────
-    # Route to the agentic loop whenever the active provider supports tool use
-    # (complete_turn). Currently that is ClaudeProvider and FallbackProvider
-    # whose primary is Claude. Other backends fall through to the RAG pipeline.
-    if hasattr(provider, "complete_turn"):
-        from .agent import agent_ask
-        return agent_ask(request, settings=settings, provider=provider,
-                         event_callback=event_callback)
-    # ────────────────────────────────────────────────────────────────────────
+    # ── Pure agent path (production) ──────────────────────────────────────────
+    # The only backend is the Claude Agent SDK: the agent harness owns the loop
+    # and our 9 tools run as an in-process MCP server. Every real request goes
+    # here. (The RAG pipeline below is unreachable in production — no backend
+    # lacks tool use — and survives ONLY as the deterministic offline test
+    # harness, driven by the StubProvider in evals/tests.)
+    from ..providers.claude_agent_sdk_provider import as_sdk_provider
+    sdk_provider = as_sdk_provider(provider)
+    if sdk_provider is not None:
+        from .agent_sdk import agent_ask_sdk
+        return agent_ask_sdk(request, settings=settings, provider=sdk_provider,
+                             event_callback=event_callback)
+    # ──────────────── TEST-ONLY fallback (StubProvider) ───────────────────────
 
     store = get_store(settings)
     trace_id = new_trace_id()

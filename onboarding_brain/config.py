@@ -30,33 +30,21 @@ def _float(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class Settings:
-    backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_BACKEND", "claude").lower())
-    # second LLM backend tried when the primary fails (e.g. openrouter -> groq)
-    fallback_backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_FALLBACK_BACKEND", "").lower())
-    # the long-form walkthrough can use a different (often larger-context) model
-    # than chat — e.g. chat on Groq, walkthrough on OpenRouter. Empty = use `backend`.
-    walkthrough_backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_WALKTHROUGH_BACKEND", "").lower())
+    # Single backend by design: this is a PURE AGENT built on the Claude Agent SDK
+    # (claude-agent-sdk). The SDK owns the tool-use loop; the app only provides the
+    # 9 code-aware tools as an in-process MCP server. There is no alternative LLM
+    # backend — the value is the agent, not an LLM-call multiplexer.
+    backend: str = field(default_factory=lambda: os.getenv("ONBOARDING_LLM_BACKEND", "claude_sdk").lower())
 
-    groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
-    # openai/gpt-oss-120b: 120B open model — peak accuracy on Groq, verified
-    # JSON-mode support, ~1s latency. Avoid reasoning models (deepseek-r1,
-    # qwen3) here — their <think> tokens break JSON mode.
-    groq_model: str = field(default_factory=lambda: os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"))
-    # strong fallback (not the weak 8b) when the primary hits a capacity/model error
-    groq_fallback_model: str = field(default_factory=lambda: os.getenv("GROQ_FALLBACK_MODEL", "llama-3.3-70b-versatile"))
-
-    # OpenRouter (OpenAI-compatible; many free models) https://openrouter.ai/keys
-    openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
-    # meta-llama/llama-3.3-70b-instruct:free — verified valid free model; strong,
-    # reliable JSON, not a reasoning model (free tier is rate-limited, but this is
-    # only the secondary backend used when Groq fails entirely)
-    openrouter_model: str = field(default_factory=lambda: os.getenv(
-        "OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"))
-    openrouter_fallback_model: str = field(default_factory=lambda: os.getenv("OPENROUTER_FALLBACK_MODEL", ""))
-    openrouter_base: str = field(default_factory=lambda: os.getenv(
-        "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
-
-    claude_model: str = field(default_factory=lambda: os.getenv("CLAUDE_MODEL", "claude-opus-4-8"))
+    # --- Claude Agent SDK backend (the only backend) ---
+    # Drives the bundled Claude Code CLI via the claude-agent-sdk. Authenticates
+    # with a Claude Pro/Max SUBSCRIPTION over OAuth — no billed API key. Either
+    # run `claude setup-token` and set CLAUDE_CODE_OAUTH_TOKEN, or log in once
+    # interactively with `claude` (creds at ~/.claude/.credentials.json). Make
+    # sure ANTHROPIC_API_KEY is UNSET or it takes precedence and bills the API.
+    # Empty model = let the CLI use the subscription's default model.
+    claude_sdk_model: str = field(default_factory=lambda: os.getenv("CLAUDE_SDK_MODEL", ""))
+    claude_sdk_oauth_token: str = field(default_factory=lambda: os.getenv("CLAUDE_CODE_OAUTH_TOKEN", ""))
 
     # When True (default, local single-user setup), a tokenless clone of a
     # private repo lets Git Credential Manager pop a browser for OAuth. On a
@@ -136,13 +124,7 @@ class Settings:
 
     @property
     def model_used(self) -> str:
-        if self.backend == "groq":
-            return f"groq/{self.groq_model}"
-        if self.backend == "openrouter":
-            return f"openrouter/{self.openrouter_model}"
-        if self.backend == "claude":
-            return f"claude/{self.claude_model}"
-        return self.backend
+        return f"claude_sdk/{self.claude_sdk_model or 'subscription-default'}"
 
 
 def get_settings() -> Settings:

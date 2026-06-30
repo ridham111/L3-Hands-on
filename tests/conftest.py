@@ -3,9 +3,9 @@ import tempfile
 
 import pytest
 
-# Use claude backend for tests; disable fallback chaining.
-os.environ.setdefault("ONBOARDING_LLM_BACKEND", "claude")
-os.environ["ONBOARDING_LLM_FALLBACK_BACKEND"] = ""  # no provider chaining in tests
+# Single backend (claude_sdk); agent flows are routed through the deterministic
+# StubProvider below, so no real SDK/CLI/network is ever touched in tests.
+os.environ.setdefault("ONBOARDING_LLM_BACKEND", "claude_sdk")
 os.environ["ONBOARDING_VECTOR_BACKEND"] = "tfidf"  # no model download/embedding in tests
 # hermetic chat store: never touch a real MongoDB even if the dev .env sets a URI
 os.environ["ONBOARDING_CHAT_STORE"] = "json"

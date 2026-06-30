@@ -167,9 +167,9 @@ def _stub_walkthrough(user: str) -> dict:
 class StubProvider(LLMProvider):
     """Deterministic, multi-purpose test double. Dispatches by prompt shape:
     chat -> grounded answer citing context files; walkthrough -> section body +
-    takeaways; condense -> standalone query echo; else -> briefing JSON. Has no
-    `complete_turn`, so chat routes to the RAG pipeline (deterministic) rather
-    than the agentic loop."""
+    takeaways; condense -> standalone query echo; else -> briefing JSON. It is not
+    the SDK agent provider, so chat falls through to the deterministic RAG pipeline
+    (the offline test harness) rather than the live Claude Agent SDK loop."""
 
     @property
     def name(self) -> str:
@@ -194,8 +194,7 @@ def install_stub(settings, *, patch_source: bool = True) -> StubProvider:
     ONLY — this keeps the stub out of the user-facing backend dispatch entirely.
 
     patch_source=False leaves `onboarding_brain.providers.get_provider` itself
-    untouched, so tests that call it directly to assert real provider selection
-    (FallbackProvider / OpenRouterProvider) still see the real factory, while the
+    untouched, so tests that call it directly still see the real factory, while the
     agent flows (which bind get_provider at import) still get the stub."""
     stub = StubProvider(settings)
 
