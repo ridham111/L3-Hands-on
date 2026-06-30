@@ -1,12 +1,14 @@
-# Cortex — get up to speed on any codebase, fast
+# Cortex
+
+**Understand any codebase by asking it questions — answered only from the real code, with exact file-and-line citations, or an honest "I couldn't find it."**
 
 > **docs/** — [Architecture](docs/architecture.md) · [API Reference](docs/api.md) · [Eval Guide](docs/eval-guide.md) · [Limitations](docs/limitations.md)
 
-Joining a new project is hard. You're handed a repo with hundreds of files and no idea
-where to start. Cortex fixes that.
+Joining a new project means staring at hundreds of unfamiliar files with no idea where to
+start. Cortex reads the whole repo so you don't have to — then a **Claude agent** answers
+your questions in plain English, **grounded in the actual code** and never invented.
 
-Point it at a project — a folder on your machine, or a git/Bitbucket link — and it reads
-the whole thing so you don't have to. Then it can:
+Point it at a project — a folder on your machine, or a git/Bitbucket link — and it can:
 
 - **Answer your questions** about the code, and show you the exact files and lines the
   answer came from. If it can't find something, it says so instead of making it up.
@@ -24,9 +26,37 @@ invents file names, features, or answers.
 
 ---
 
+## How it works
+
+Cortex is a **Level-3 agent**: the Claude model plans, picks its own tools, and decides
+when it has enough to answer. Cortex's job is to give it a read-only, code-aware view of a
+search index — and to reconstruct each answer's sources from the files it actually read.
+
+```mermaid
+flowchart TD
+    A["Access — REST API · CLI · Web UI"] --> B["Front door — routes the question"]
+    B --> C{{"Claude Agent SDK — owns the tool-use loop"}}
+    C <-->|"plan → call tool → read → repeat"| T["9 read-only tools<br/>search · read · grep · symbols · deps · call-graph · AST"]
+    T <--> I[("Search index · .kt_index")]
+    C --> R["Grounded answer — cites file:line, or honest 'not found'"]
+
+    subgraph Ingest ["Ingest · once per repo"]
+        direction LR
+        G["Repo (folder or git URL)"] --> H["Chunk and label<br/>path · lines · symbol"] --> I
+    end
+```
+
+One backend — the **Claude Agent SDK** — running on a Claude Pro/Max subscription via OAuth
+(no billed API key). The SDK runs the loop; Cortex supplies the tools and the index.
+
+---
+
 ## Get it running
 
-You need **Python** and the **Claude Code CLI** (for the one-time login). Then:
+**Required:** **Python** and the **Claude Code CLI** (for the one-time login).
+**Optional:** **MongoDB** (use **MongoDB Compass** to browse it) — only if you want chat
+history saved to a database. Without it, chat history is kept in local JSON files
+automatically; nothing to install. Then:
 
 ```powershell
 cd onboarding-brain

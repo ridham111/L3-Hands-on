@@ -20,7 +20,7 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -361,6 +361,26 @@ async def get_walkthrough(namespace: str, _: str = Depends(require_auth)) -> dic
             except Exception:
                 pass
     return {"status": "generating" if walkthrough_running(namespace) else "absent"}
+
+
+@app.get("/v1/walkthrough/{namespace}/pdf")
+async def walkthrough_pdf(namespace: str, _: str = Depends(require_auth)) -> Response:
+    """Download the project walkthrough as a real PDF (generated server-side)."""
+    from onboarding_brain.contract import WalkthroughResponse
+    from onboarding_brain.kt.walkthrough import load_cached_walkthrough
+    from onboarding_brain.kt.walkthrough_pdf import build_walkthrough_pdf
+    settings = get_settings()
+    cached = load_cached_walkthrough(namespace, settings=settings)
+    if not cached:
+        raise HTTPException(status_code=404, detail="walkthrough not generated yet — start it first")
+    try:
+        doc = WalkthroughResponse.model_validate(cached).model_dump(mode="json")
+    except Exception:
+        doc = cached
+    pdf_bytes = await run_in_threadpool(build_walkthrough_pdf, doc)
+    fname = (slugify(namespace) or "walkthrough") + "-walkthrough.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 @app.post("/v1/walkthrough/{namespace}")

@@ -15,6 +15,7 @@ fastembed>=0.3           # dense semantic embeddings (local ONNX, no torch, no k
                          # set ONBOARDING_VECTOR_BACKEND=dense to use it (recommended)
 
 # --- Access layer ---
+reportlab>=4.0       # server-side PDF export for the project walkthrough
 fastapi>=0.110
 uvicorn[standard]>=0.29
 typer>=0.12

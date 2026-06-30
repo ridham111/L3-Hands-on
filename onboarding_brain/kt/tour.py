@@ -214,7 +214,19 @@ def _doc_only_tour(store, ns: str, docs: list[dict]) -> dict:
             "wiring": None}
 
 
-def build_tour(namespace: str, *, max_stops: int = 12, max_per_chapter: int = 4,
+def _adaptive_stop_budget(n_logic: int, populated_chapters: int, settings: Settings) -> int:
+    """How many stops the tour should have. Scales with the repo — ~2 stops per
+    distinct area and ~1 per 10 logic files — clamped to [min, max] and never more
+    than the files that actually exist. So a 5-file util gets a short tour and a
+    big monorepo gets a fuller (but still finishable) one — never a flat 12."""
+    lo, hi = settings.tour_min_stops, settings.tour_max_stops
+    by_area = populated_chapters * 2
+    by_size = -(-n_logic // 10)  # ceil(n_logic / 10)
+    target = max(by_area, by_size)
+    return min(n_logic, max(lo, min(hi, target)))
+
+
+def build_tour(namespace: str, *, max_stops: Optional[int] = None, max_per_chapter: int = 4,
                narrate: bool = False, settings: Optional[Settings] = None) -> dict:
     settings = settings or get_settings()
     store = get_store(settings)
@@ -260,6 +272,10 @@ def build_tour(namespace: str, *, max_stops: int = 12, max_per_chapter: int = 4,
 
     out_chapters: list[dict] = []
     all_paths: list[str] = []
+    # adaptive by default; an explicit max_stops (e.g. from a caller) overrides
+    if max_stops is None:
+        populated = sum(1 for t in _FLOW if buckets[t])
+        max_stops = _adaptive_stop_budget(len(paths), populated, settings)
     budget = max_stops
     for title in _FLOW:
         if budget <= 0:

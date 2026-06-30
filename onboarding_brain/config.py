@@ -94,6 +94,11 @@ class Settings:
     # cap git commits indexed as searchable history chunks (each must be embedded)
     max_commit_chunks: int = field(default_factory=lambda: _int("ONBOARDING_MAX_COMMIT_CHUNKS", 100))
     index_dir: str = field(default_factory=lambda: os.getenv("ONBOARDING_INDEX_DIR", ".kt_index"))
+    # Guided tour length is DYNAMIC: it scales with the repo's size and how many
+    # distinct areas it has, clamped to [min, max] so a tiny repo isn't padded and
+    # a huge one stays finishable. Not a fixed stop count.
+    tour_min_stops: int = field(default_factory=lambda: _int("ONBOARDING_TOUR_MIN_STOPS", 5))
+    tour_max_stops: int = field(default_factory=lambda: _int("ONBOARDING_TOUR_MAX_STOPS", 20))
     # retrieval depth is DYNAMIC: up to top_k candidates are fetched, then a
     # relevance cutoff keeps between min_k and top_k — focused questions get
     # few sharp sources, broad ones keep many.
